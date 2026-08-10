@@ -131,6 +131,15 @@ $("#downloadApproved").onclick=()=>{
   const blob=makeZip(files),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="ZRADA_Approved_Product_Images.zip";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
   toast(`${approved.length} approved image(s) exported as ZIP`);
 };
+$("#clearApproved").onclick=()=>{
+  const approved=state.jobs.filter(j=>j.approved);
+  if(!approved.length)return toast("No approved products to clear");
+  if(!confirm(`Clear ${approved.length} approved image(s) from this workspace? Make sure you downloaded them first.`))return;
+  approved.forEach(j=>{try{if(j.sourceURL?.startsWith("blob:"))URL.revokeObjectURL(j.sourceURL)}catch(e){}});
+  state.jobs=state.jobs.filter(j=>!j.approved);
+  renderAll();
+  toast(`${approved.length} approved image(s) cleared`);
+};
 function renderStats(){$("#statStyles").textContent=new Set(state.jobs.map(j=>j.styleSeed)).size;$("#statQueued").textContent=state.jobs.filter(j=>j.status==="queued"||j.status==="running").length;$("#statDone").textContent=state.jobs.filter(j=>j.status==="complete").length;$("#statApproved").textContent=state.jobs.filter(j=>j.approved).length}
 function renderAll(){renderQueue();renderReview();renderStats()}
 

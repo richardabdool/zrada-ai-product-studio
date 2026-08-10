@@ -1,3 +1,7 @@
+ZRADA AI Product Studio v2.3 — Clear Approved Edition
+
+NEW: Review & Export now includes Clear Approved. After downloading approved images, click Clear Approved and confirm to remove only approved/finished products while leaving pending, failed, or queued work untouched.
+
 ZRADA AI PRODUCT STUDIO v2.2 — BULK CONSISTENCY ENGINE
 
 WHAT THIS BUILD DOES

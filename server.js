@@ -260,8 +260,8 @@ function dataUrlToBuffer(data) {
 
 async function handleGenerate(req, res) {
   const body = await parseJson(req);
-  const key = String(req.headers["x-openai-key"] || "").trim();
-  if (!key) return send(res, 400, {ok:false, error:"Paste your OpenAI API key in Settings first."});
+  const key = String(process.env.OPENAI_API_KEY || "").trim();
+  if (!key) return send(res, 500, {ok:false, error:"OpenAI API key is not configured on the server. Add OPENAI_API_KEY in Render Environment settings."});
 
   const source = dataUrlToBuffer(body.source_base64);
   const ref = body.reference_base64 ? dataUrlToBuffer(body.reference_base64) : null;
@@ -306,8 +306,8 @@ async function handleGenerate(req, res) {
 }
 
 async function handleTest(req, res) {
-  const key = String(req.headers["x-openai-key"] || "").trim();
-  if (!key) return send(res, 400, {ok:false,error:"Enter an API key."});
+  const key = String(process.env.OPENAI_API_KEY || "").trim();
+  if (!key) return send(res, 500, {ok:false,error:"OPENAI_API_KEY is not configured in Render."});
   const r = await fetch("https://api.openai.com/v1/models", {headers:{Authorization:`Bearer ${key}`}});
   const text = await r.text();
   if (!r.ok) return send(res, r.status, {ok:false,error:safeError(r.status,text)});
@@ -328,7 +328,7 @@ http.createServer(async (req,res)=>{
   try {
     if (req.method === "POST" && req.url === "/api/generate") return await handleGenerate(req,res);
     if (req.method === "POST" && req.url === "/api/test") return await handleTest(req,res);
-    if (req.method === "GET" && req.url === "/api/health") return send(res,200,{ok:true,version:"2.0"});
+    if (req.method === "GET" && req.url === "/api/health") return send(res,200,{ok:true,version:"2.1",openai_configured:!!process.env.OPENAI_API_KEY});
     return staticFile(req,res);
   } catch(e) {
     send(res,500,{ok:false,error:e.message || String(e)});

@@ -2,10 +2,11 @@ services:
   - type: web
     name: zrada-ai-product-studio
     runtime: node
-    plan: starter
-    buildCommand: ""
+    buildCommand: npm install
     startCommand: node server.js
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
         value: 22.16.0
+      - key: OPENAI_API_KEY
+        sync: false

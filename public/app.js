@@ -57,8 +57,6 @@ $("#addQueue").onclick=()=>{
 };
 
 async function generateJob(j){
-  const key=localStorage.getItem("zradaApiKey")||"";
-  if(!key)throw new Error("Save your OpenAI API key in Settings first.");
   const source=await readDataURL(j.file);
   const reference=state.styleRefs.get(j.styleSeed)||null;
   const payload={
@@ -68,7 +66,7 @@ async function generateJob(j){
     quality:localStorage.getItem("zradaQuality")||"high",
     size:localStorage.getItem("zradaSize")||"1024x1536"
   };
-  const r=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json","x-openai-key":key},body:JSON.stringify(payload)});
+  const r=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
   const d=await r.json();
   if(!r.ok||!d.ok)throw new Error(d.error||"Generation failed");
   j.result=d.image_base64;j.meta=d;j.status="complete";
@@ -77,7 +75,7 @@ async function generateJob(j){
 $("#generateBtn").onclick=async()=>{
   if(state.running)return;
   const jobs=state.jobs.filter(j=>j.status==="queued"||j.status==="failed");
-  if(!jobs.length)return toast("No queued jobs");
+  if(!jobs.length)return toast("No queued or failed jobs to generate");
   state.running=true;$("#generateBtn").textContent="Generating...";
   for(const j of jobs){
     j.status="running";j.error=null;renderAll();
@@ -118,21 +116,31 @@ $("#downloadApproved").onclick=async()=>{
 function renderStats(){$("#statStyles").textContent=new Set(state.jobs.map(j=>j.styleSeed)).size;$("#statQueued").textContent=state.jobs.filter(j=>j.status==="queued"||j.status==="running").length;$("#statDone").textContent=state.jobs.filter(j=>j.status==="complete").length;$("#statApproved").textContent=state.jobs.filter(j=>j.approved).length}
 function renderAll(){renderQueue();renderReview();renderStats()}
 
-$("#apiKey").value=localStorage.getItem("zradaApiKey")||"";
 $("#model").value=localStorage.getItem("zradaModel")||"gpt-image-2";
 $("#quality").value=localStorage.getItem("zradaQuality")||"high";
 $("#size").value=localStorage.getItem("zradaSize")||"1024x1536";
-function updateKeyStatus(){$("#apiStatus").textContent=localStorage.getItem("zradaApiKey")?"API key saved in this browser.":"No API key saved."}
-$("#showKey").onclick=()=>{let i=$("#apiKey"),s=i.type==="password";i.type=s?"text":"password";$("#showKey").textContent=s?"Hide":"Show"}
-$("#pasteKey").onclick=async()=>{try{$("#apiKey").value=(await navigator.clipboard.readText()).trim();toast("API key pasted")}catch{$("#apiKey").focus();toast("Use Ctrl+V in the box")}}
-$("#testKey").onclick=async()=>{
-  const key=$("#apiKey").value.trim()||localStorage.getItem("zradaApiKey")||"";
-  $("#apiStatus").textContent="Testing...";
-  try{const r=await fetch("/api/test",{method:"POST",headers:{"x-openai-key":key}});const d=await r.json();$("#apiStatus").textContent=d.ok?"Connection successful.":"Connection failed: "+d.error}catch(e){$("#apiStatus").textContent="Connection failed: "+e.message}
+
+async function testServerConnection(){
+  $("#apiStatus").textContent="Testing server connection...";
+  try{
+    const r=await fetch("/api/test",{method:"POST"});
+    const d=await r.json();
+    $("#apiStatus").textContent=d.ok
+      ?"Server connection successful. OpenAI is ready."
+      :"Connection failed: "+(d.error||"Unknown error");
+  }catch(e){
+    $("#apiStatus").textContent="Connection failed: "+e.message;
+  }
 }
-$("#saveKey").onclick=()=>{
-  const k=$("#apiKey").value.trim();if(k)localStorage.setItem("zradaApiKey",k);
-  localStorage.setItem("zradaModel",$("#model").value);localStorage.setItem("zradaQuality",$("#quality").value);localStorage.setItem("zradaSize",$("#size").value);
-  $("#apiKey").value=localStorage.getItem("zradaApiKey")||"";updateKeyStatus();toast("Settings saved")
-}
-updateKeyStatus();renderBatch();renderAll();
+$("#testKey").onclick=testServerConnection;
+
+["model","quality","size"].forEach(id=>{
+  $("#"+id).onchange=()=>{
+    localStorage.setItem("zradaModel",$("#model").value);
+    localStorage.setItem("zradaQuality",$("#quality").value);
+    localStorage.setItem("zradaSize",$("#size").value);
+    toast("Image setting saved");
+  };
+});
+
+testServerConnection();renderBatch();renderAll();

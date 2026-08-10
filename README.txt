@@ -1,21 +1,21 @@
-ZRADA AI Product Studio v2.1 — Server Key Edition
+ZRADA AI PRODUCT STUDIO v2.2 — BULK CONSISTENCY ENGINE
 
-SECURITY CHANGE
-- OpenAI API key is no longer stored in the browser.
-- Add OPENAI_API_KEY as a secret Environment Variable in Render.
-- Never put the API key in GitHub.
+WHAT THIS BUILD DOES
+- Keeps OPENAI_API_KEY on the Render server. Never put the key in GitHub.
+- Upload one parent folder containing multiple style folders.
+- Detects each style folder and all color images inside it.
+- Generates the first color of each style as its master reference.
+- Reuses that generated reference for the remaining colors of the same style.
+- Keeps category-specific rules for dresses, tops, skirts, jeans, pants, menswear, handbags, underwear, footwear and other products.
+- Review, approve, regenerate or reject images.
+- Exports all approved images as ONE real ZIP, organized into style folders.
 
-DEPLOY UPDATE
-Upload these files to the existing GitHub repository, replacing the older files.
-Render should auto-deploy after the GitHub commit.
+RENDER
+Environment variable: OPENAI_API_KEY = your OpenAI API key
+Start command: npm start
 
-RENDER SETUP
-Environment > Add Environment Variable
-Key: OPENAI_API_KEY
-Value: your OpenAI API key
-Save Changes
+UPDATE EXISTING GITHUB REPOSITORY
+Upload/replace: server.js, package.json, render.yaml, README.txt and the entire public folder. Commit directly to main. Render should auto-deploy.
 
-Then open Settings in the app and click Test Server Connection.
-
-FAILED JOBS
-The Generate Images button automatically retries jobs whose status is FAILED, so the product folder does not need to be uploaded again.
+IMPORTANT
+Do not upload your API key to GitHub or place it in any browser-side file.

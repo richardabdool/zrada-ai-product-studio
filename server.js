@@ -328,7 +328,7 @@ http.createServer(async (req,res)=>{
   try {
     if (req.method === "POST" && req.url === "/api/generate") return await handleGenerate(req,res);
     if (req.method === "POST" && req.url === "/api/test") return await handleTest(req,res);
-    if (req.method === "GET" && req.url === "/api/health") return send(res,200,{ok:true,version:"2.1",openai_configured:!!process.env.OPENAI_API_KEY});
+    if (req.method === "GET" && req.url === "/api/health") return send(res,200,{ok:true,version:"2.2",openai_configured:!!process.env.OPENAI_API_KEY});
     return staticFile(req,res);
   } catch(e) {
     send(res,500,{ok:false,error:e.message || String(e)});

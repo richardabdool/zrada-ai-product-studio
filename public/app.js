@@ -103,15 +103,33 @@ function renderReview(){
 window.approve=id=>{const j=state.jobs.find(x=>x.id===id);if(j){j.approved=true;renderAll();toast("Approved")}}
 window.regenerate=id=>{const j=state.jobs.find(x=>x.id===id);if(j){j.status="queued";j.result=null;j.error=null;j.approved=false;renderAll();showView("queue")}}
 window.removeJob=id=>{state.jobs=state.jobs.filter(x=>x.id!==id);renderAll()}
-$("#downloadApproved").onclick=async()=>{
+function crc32(bytes){
+  let c=0xffffffff;
+  for(const b of bytes){c^=b;for(let k=0;k<8;k++)c=(c>>>1)^((c&1)?0xedb88320:0)}
+  return (c^0xffffffff)>>>0;
+}
+function u16(n){return new Uint8Array([n&255,(n>>>8)&255])}
+function u32(n){return new Uint8Array([n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255])}
+function concat(parts){const n=parts.reduce((a,b)=>a+b.length,0),o=new Uint8Array(n);let p=0;for(const x of parts){o.set(x,p);p+=x.length}return o}
+function dataUrlBytes(url){const b64=url.split(",")[1],bin=atob(b64),out=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);return out}
+function safeName(v){return String(v).trim().replace(/[\\/:*?"<>|]+/g,"-").replace(/\s+/g,"_")}
+function makeZip(files){
+  const enc=new TextEncoder(),locals=[],centrals=[];let offset=0;
+  for(const f of files){
+    const name=enc.encode(f.name),data=f.data,crc=crc32(data);
+    const local=concat([u32(0x04034b50),u16(20),u16(0),u16(0),u16(0),u16(0),u32(crc),u32(data.length),u32(data.length),u16(name.length),u16(0),name,data]);
+    const central=concat([u32(0x02014b50),u16(20),u16(20),u16(0),u16(0),u16(0),u16(0),u32(crc),u32(data.length),u32(data.length),u16(name.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(offset),name]);
+    locals.push(local);centrals.push(central);offset+=local.length;
+  }
+  const centralData=concat(centrals),end=concat([u32(0x06054b50),u16(0),u16(0),u16(files.length),u16(files.length),u32(centralData.length),u32(offset),u16(0)]);
+  return new Blob([...locals,centralData,end],{type:"application/zip"});
+}
+$("#downloadApproved").onclick=()=>{
   const approved=state.jobs.filter(j=>j.approved&&j.result);
   if(!approved.length)return toast("No approved images");
-  // Browser-native individual downloads: avoids external ZIP dependency.
-  for(const j of approved){
-    const a=document.createElement("a");a.href=j.result;a.download=`${j.style}_${j.color.replace(/\s+/g,"_")}.png`;document.body.appendChild(a);a.click();a.remove();
-    await new Promise(r=>setTimeout(r,250));
-  }
-  toast(`${approved.length} approved image(s) downloaded`);
+  const files=approved.map(j=>({name:`${safeName(j.style)}/${safeName(j.style)}_${safeName(j.color)}.png`,data:dataUrlBytes(j.result)}));
+  const blob=makeZip(files),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="ZRADA_Approved_Product_Images.zip";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  toast(`${approved.length} approved image(s) exported as ZIP`);
 };
 function renderStats(){$("#statStyles").textContent=new Set(state.jobs.map(j=>j.styleSeed)).size;$("#statQueued").textContent=state.jobs.filter(j=>j.status==="queued"||j.status==="running").length;$("#statDone").textContent=state.jobs.filter(j=>j.status==="complete").length;$("#statApproved").textContent=state.jobs.filter(j=>j.approved).length}
 function renderAll(){renderQueue();renderReview();renderStats()}

@@ -28,6 +28,41 @@ $("#category").onchange=updateCategory;updateCategory();
 
 function colorName(n){return n.replace(/\.[^.]+$/,"").replace(/[_-]+/g," ").trim()}
 function readDataURL(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
+function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
+function isTransientStatus(status){return [408,425,429,500,502,503,504].includes(Number(status))}
+function friendlyHttpError(status,text){
+  const raw=String(text||"").trim();
+  if(status===429)return "OpenAI/Render is temporarily rate-limited. The app will retry automatically.";
+  if([500,502,503,504].includes(Number(status)))return "Temporary server interruption. The app will retry automatically.";
+  if(raw.startsWith("<!DOCTYPE")||raw.startsWith("<html")||raw.includes("<!DOCTYPE html"))return "Temporary Render gateway page received instead of the image response.";
+  try{
+    const d=JSON.parse(raw);
+    return d?.error || d?.message || `Request failed (HTTP ${status}).`;
+  }catch{}
+  return raw.slice(0,240) || `Request failed (HTTP ${status}).`;
+}
+async function fetchJsonSafe(url,options={}){
+  const r=await fetch(url,options);
+  const text=await r.text();
+  let data=null;
+  try{data=text?JSON.parse(text):{}}catch{}
+  if(!r.ok){
+    const err=new Error(data?.error||friendlyHttpError(r.status,text));
+    err.status=r.status;
+    err.transient=isTransientStatus(r.status) || !data || /temporary|gateway|timeout|rate.limit/i.test(err.message);
+    err.raw=text;
+    throw err;
+  }
+  if(!data){
+    const err=new Error("The server returned a non-JSON response. This is usually a temporary Render interruption.");
+    err.status=r.status;
+    err.transient=true;
+    err.raw=text;
+    throw err;
+  }
+  return data;
+}
+
 $("#folderInput").onchange=e=>{
   state.files=[...e.target.files].filter(f=>(f.type||"").startsWith("image/")||/\.(png|jpe?g|webp)$/i.test(f.name));
   state.groups={};
@@ -66,32 +101,84 @@ async function generateJob(j){
     quality:localStorage.getItem("zradaQuality")||"high",
     size:localStorage.getItem("zradaSize")||"1024x1536"
   };
-  const r=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-  const d=await r.json();
-  if(!r.ok||!d.ok)throw new Error(d.error||"Generation failed");
-  j.result=d.image_base64;j.meta=d;j.status="complete";
+  const d=await fetchJsonSafe("/api/generate",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(payload)
+  });
+  if(!d.ok)throw new Error(d.error||"Generation failed");
+  j.result=d.image_base64;
+  j.meta=d;
+  j.status="complete";
+  j.error=null;
+  j.retryMessage=null;
   if(!reference)state.styleRefs.set(j.styleSeed,d.image_base64);
 }
-$("#generateBtn").onclick=async()=>{
+
+async function runJobs(jobs){
   if(state.running)return;
-  const jobs=state.jobs.filter(j=>j.status==="queued"||j.status==="failed");
-  if(!jobs.length)return toast("No queued or failed jobs to generate");
-  state.running=true;$("#generateBtn").textContent="Generating...";
-  for(const j of jobs){
-    j.status="running";j.error=null;renderAll();
-    let attempts=0;
-    while(attempts<2){
-      try{await generateJob(j);break}catch(e){attempts++;j.error=e.message;if(attempts>=2)j.status="failed";}
+  if(!jobs.length)return toast("No jobs to process");
+  state.running=true;
+  $("#generateBtn").disabled=true;
+  $("#retryFailedBtn").disabled=true;
+  $("#generateBtn").textContent="Generating...";
+  for(let idx=0;idx<jobs.length;idx++){
+    const j=jobs[idx];
+    j.error=null;
+    j.retryMessage=null;
+    let success=false;
+    const maxAttempts=3;
+    for(let attempt=1;attempt<=maxAttempts;attempt++){
+      j.attempt=attempt;
+      j.status=attempt===1?"running":"retrying";
+      j.retryMessage=attempt===1?null:`Retry ${attempt} of ${maxAttempts}`;
+      renderAll();
+      try{
+        await generateJob(j);
+        success=true;
+        break;
+      }catch(e){
+        j.error=e.message||String(e);
+        const transient=e.transient!==false;
+        if(attempt<maxAttempts && transient){
+          const waitMs=attempt===1?5000:10000;
+          j.status="retrying";
+          j.retryMessage=`Temporary interruption — retrying in ${Math.round(waitMs/1000)} seconds (${attempt+1}/${maxAttempts})`;
+          renderAll();
+          await sleep(waitMs);
+          continue;
+        }
+        j.status="failed";
+        j.retryMessage=null;
+        break;
+      }
     }
     renderAll();
+    // Gentle spacing between expensive image calls protects large batches on free/low-tier hosting.
+    if(success && idx<jobs.length-1)await sleep(2500);
   }
-  state.running=false;$("#generateBtn").textContent="Generate Images";toast("Generation queue finished");
+  state.running=false;
+  $("#generateBtn").disabled=false;
+  $("#retryFailedBtn").disabled=false;
+  $("#generateBtn").textContent="Generate Images";
+  toast("Generation queue finished");
+}
+$("#generateBtn").onclick=async()=>{
+  const jobs=state.jobs.filter(j=>j.status==="queued"||j.status==="failed");
+  if(!jobs.length)return toast("No queued or failed jobs to generate");
+  await runJobs(jobs);
+};
+$("#retryFailedBtn").onclick=async()=>{
+  const failed=state.jobs.filter(j=>j.status==="failed");
+  if(!failed.length)return toast("No failed images to retry");
+  failed.forEach(j=>{j.error=null;j.retryMessage=null;});
+  await runJobs(failed);
 };
 function renderQueue(){
   const q=$("#queueList");
   if(!state.jobs.length){q.className="empty";q.textContent="No images queued.";progress();return}
   q.className="";
-  q.innerHTML=state.jobs.map(j=>`<div class="job"><div><b>${esc(j.style)}</b><br><span class="meta">${esc(j.category)}</span></div><span>${esc(j.color)}</span><span>${esc(j.meta?.framing||"—")}</span><span class="status ${j.status}">${esc(j.status.toUpperCase())}</span>${j.error?`<div class="jobError"><b>Error:</b> ${esc(j.error)}</div>`:""}</div>`).join("");
+  q.innerHTML=state.jobs.map(j=>`<div class="job"><div><b>${esc(j.style)}</b><br><span class="meta">${esc(j.category)}</span></div><span>${esc(j.color)}</span><span>${esc(j.meta?.framing||"—")}</span><span class="status ${j.status}">${esc(j.status.toUpperCase())}${j.attempt&&j.status!=="complete"?` <small>(${j.attempt}/3)</small>`:""}</span>${j.retryMessage?`<div class="retryNotice">${esc(j.retryMessage)}</div>`:""}${j.error&&j.status==="failed"?`<div class="jobError"><b>Error:</b> ${esc(j.error)}</div>`:""}</div>`).join("");
   progress();
 }
 function progress(){let t=state.jobs.length,d=state.jobs.filter(j=>j.status==="complete").length,p=t?Math.round(d/t*100):0;$("#progressText").textContent=`${d} of ${t} generated`;$("#progressPct").textContent=p+"%";$("#progressBar").style.width=p+"%"}
@@ -140,7 +227,7 @@ $("#clearApproved").onclick=()=>{
   renderAll();
   toast(`${approved.length} approved image(s) cleared`);
 };
-function renderStats(){$("#statStyles").textContent=new Set(state.jobs.map(j=>j.styleSeed)).size;$("#statQueued").textContent=state.jobs.filter(j=>j.status==="queued"||j.status==="running").length;$("#statDone").textContent=state.jobs.filter(j=>j.status==="complete").length;$("#statApproved").textContent=state.jobs.filter(j=>j.approved).length}
+function renderStats(){$("#statStyles").textContent=new Set(state.jobs.map(j=>j.styleSeed)).size;$("#statQueued").textContent=state.jobs.filter(j=>j.status==="queued"||j.status==="running"||j.status==="retrying").length;$("#statDone").textContent=state.jobs.filter(j=>j.status==="complete").length;$("#statApproved").textContent=state.jobs.filter(j=>j.approved).length}
 function renderAll(){renderQueue();renderReview();renderStats()}
 
 $("#model").value=localStorage.getItem("zradaModel")||"gpt-image-2";
@@ -150,8 +237,7 @@ $("#size").value=localStorage.getItem("zradaSize")||"1024x1536";
 async function testServerConnection(){
   $("#apiStatus").textContent="Testing server connection...";
   try{
-    const r=await fetch("/api/test",{method:"POST"});
-    const d=await r.json();
+    const d=await fetchJsonSafe("/api/test",{method:"POST"});
     $("#apiStatus").textContent=d.ok
       ?"Server connection successful. OpenAI is ready."
       :"Connection failed: "+(d.error||"Unknown error");

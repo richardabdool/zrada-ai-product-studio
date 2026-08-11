@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ZRADA AI Product Studio v2.2</title>
+<title>ZRADA AI Product Studio v2.4</title>
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -15,7 +15,7 @@
   <button class="nav" data-view="queue">Generation Queue</button>
   <button class="nav" data-view="review">Review & Export</button>
   <button class="nav" data-view="settings">Settings</button>
-  <div class="version">V2.2 • BULK CONSISTENCY ENGINE</div>
+  <div class="version">V2.4 • RESILIENT BULK ENGINE</div>
 </aside>
 
 <main>
@@ -100,7 +100,7 @@
 
 <section id="queue" class="view">
 <div class="panel">
-  <div class="panelHead"><div><h3>Generation Queue</h3><p>The first successful color becomes the reference for the remaining colors of that style.</p></div><button class="primary" id="generateBtn">Generate Images</button></div>
+  <div class="panelHead"><div><h3>Generation Queue</h3><p>The first successful color becomes the reference for the remaining colors of that style. Temporary server interruptions are retried automatically.</p></div><div class="queueActions"><button class="secondary" id="retryFailedBtn">Retry Failed Only</button><button class="primary" id="generateBtn">Generate Images</button></div></div>
   <div class="progressMeta"><span id="progressText">0 of 0 generated</span><b id="progressPct">0%</b></div><div class="track"><div id="progressBar"></div></div>
   <div id="queueList" class="empty">No images queued.</div>
 </div>

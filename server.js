@@ -9,7 +9,12 @@ const PUBLIC = path.join(__dirname, "public");
 
 function send(res, status, body, type="application/json; charset=utf-8") {
   const data = Buffer.isBuffer(body) ? body : Buffer.from(typeof body === "string" ? body : JSON.stringify(body));
-  res.writeHead(status, {"Content-Type": type, "Content-Length": data.length});
+  res.writeHead(status, {
+    "Content-Type": type,
+    "Content-Length": data.length,
+    "Cache-Control":"no-store",
+    "X-Content-Type-Options":"nosniff"
+  });
   res.end(data);
 }
 function safeError(status, text) {
@@ -283,11 +288,22 @@ async function handleGenerate(req, res) {
   form.append("image[]", new Blob([source.buffer], {type: source.mime}), body.filename || "source.jpg");
   if (ref) form.append("image[]", new Blob([ref.buffer], {type: ref.mime}), "style-reference.png");
 
-  const r = await fetch("https://api.openai.com/v1/images/edits", {
-    method:"POST",
-    headers:{Authorization:`Bearer ${key}`},
-    body:form
-  });
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(), 8*60*1000);
+  let r;
+  try{
+    r = await fetch("https://api.openai.com/v1/images/edits", {
+      method:"POST",
+      headers:{Authorization:`Bearer ${key}`},
+      body:form,
+      signal:controller.signal
+    });
+  }catch(e){
+    if(e?.name==="AbortError")return send(res,504,{ok:false,error:"Image generation timed out. This is temporary; retry the image."});
+    throw e;
+  }finally{
+    clearTimeout(timer);
+  }
   const text = await r.text();
   if (!r.ok) return send(res, r.status, {ok:false, error:safeError(r.status, text), raw:text});
 
@@ -328,7 +344,7 @@ http.createServer(async (req,res)=>{
   try {
     if (req.method === "POST" && req.url === "/api/generate") return await handleGenerate(req,res);
     if (req.method === "POST" && req.url === "/api/test") return await handleTest(req,res);
-    if (req.method === "GET" && req.url === "/api/health") return send(res,200,{ok:true,version:"2.2",openai_configured:!!process.env.OPENAI_API_KEY});
+    if (req.method === "GET" && req.url === "/api/health") return send(res,200,{ok:true,version:"2.4",openai_configured:!!process.env.OPENAI_API_KEY});
     return staticFile(req,res);
   } catch(e) {
     send(res,500,{ok:false,error:e.message || String(e)});

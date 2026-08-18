@@ -257,10 +257,46 @@ async function parseJson(req) {
   if (Buffer.byteLength(raw) > 40 * 1024 * 1024) throw new Error("Upload too large. Reduce the source image file size.");
   return JSON.parse(raw || "{}");
 }
-function dataUrlToBuffer(data) {
+function detectSupportedImageMime(buffer, declaredMime="", filename="") {
+  // Trust the actual file bytes first, not the browser/Windows MIME label.
+  // This fixes genuine JPEG files that arrive incorrectly labelled image/dng.
+  if (buffer.length >= 3 &&
+      buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
+    return "image/jpeg";
+  }
+  if (buffer.length >= 8 &&
+      buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E &&
+      buffer[3] === 0x47 && buffer[4] === 0x0D && buffer[5] === 0x0A &&
+      buffer[6] === 0x1A && buffer[7] === 0x0A) {
+    return "image/png";
+  }
+  if (buffer.length >= 12 &&
+      buffer.toString("ascii", 0, 4) === "RIFF" &&
+      buffer.toString("ascii", 8, 12) === "WEBP") {
+    return "image/webp";
+  }
+
+  const declared = String(declaredMime || "").toLowerCase();
+  if (["image/jpeg","image/png","image/webp"].includes(declared)) return declared;
+
+  // Filename fallback is only used when the byte signature is inconclusive.
+  const ext = path.extname(String(filename || "")).toLowerCase();
+  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
+  if (ext === ".png") return "image/png";
+  if (ext === ".webp") return "image/webp";
+
+  throw new Error(
+    `Unsupported source image format (${declared || "unknown"}). ` +
+    `Please use a real JPEG, PNG or WebP file.`
+  );
+}
+
+function dataUrlToBuffer(data, filename="") {
   const m = String(data || "").match(/^data:([^;]+);base64,(.+)$/s);
   if (!m) throw new Error("Invalid image data.");
-  return {mime: m[1], buffer: Buffer.from(m[2], "base64")};
+  const buffer = Buffer.from(m[2], "base64");
+  const mime = detectSupportedImageMime(buffer, m[1], filename);
+  return {mime, buffer};
 }
 
 async function handleGenerate(req, res) {
@@ -268,8 +304,8 @@ async function handleGenerate(req, res) {
   const key = String(process.env.OPENAI_API_KEY || "").trim();
   if (!key) return send(res, 500, {ok:false, error:"OpenAI API key is not configured on the server. Add OPENAI_API_KEY in Render Environment settings."});
 
-  const source = dataUrlToBuffer(body.source_base64);
-  const ref = body.reference_base64 ? dataUrlToBuffer(body.reference_base64) : null;
+  const source = dataUrlToBuffer(body.source_base64, body.filename || "source.jpg");
+  const ref = body.reference_base64 ? dataUrlToBuffer(body.reference_base64, "style-reference.png") : null;
   const meta = buildPrompt({
     category: body.category,
     color: body.color || "product",
@@ -344,7 +380,7 @@ http.createServer(async (req,res)=>{
   try {
     if (req.method === "POST" && req.url === "/api/generate") return await handleGenerate(req,res);
     if (req.method === "POST" && req.url === "/api/test") return await handleTest(req,res);
-    if (req.method === "GET" && req.url === "/api/health") return send(res,200,{ok:true,version:"2.4",openai_configured:!!process.env.OPENAI_API_KEY});
+    if (req.method === "GET" && req.url === "/api/health") return send(res,200,{ok:true,version:"2.5",openai_configured:!!process.env.OPENAI_API_KEY});
     return staticFile(req,res);
   } catch(e) {
     send(res,500,{ok:false,error:e.message || String(e)});

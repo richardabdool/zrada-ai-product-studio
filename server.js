@@ -258,36 +258,34 @@ async function parseJson(req) {
   return JSON.parse(raw || "{}");
 }
 function detectSupportedImageMime(buffer, declaredMime="", filename="") {
-  // Trust the actual file bytes first, not the browser/Windows MIME label.
-  // This fixes genuine JPEG files that arrive incorrectly labelled image/dng.
   if (buffer.length >= 3 &&
-      buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
-    return "image/jpeg";
-  }
+      buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) return "image/jpeg";
+
   if (buffer.length >= 8 &&
       buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E &&
       buffer[3] === 0x47 && buffer[4] === 0x0D && buffer[5] === 0x0A &&
-      buffer[6] === 0x1A && buffer[7] === 0x0A) {
-    return "image/png";
-  }
+      buffer[6] === 0x1A && buffer[7] === 0x0A) return "image/png";
+
   if (buffer.length >= 12 &&
-      buffer.toString("ascii", 0, 4) === "RIFF" &&
-      buffer.toString("ascii", 8, 12) === "WEBP") {
-    return "image/webp";
-  }
+      buffer.toString("ascii",0,4) === "RIFF" &&
+      buffer.toString("ascii",8,12) === "WEBP") return "image/webp";
 
   const declared = String(declaredMime || "").toLowerCase();
-  if (["image/jpeg","image/png","image/webp"].includes(declared)) return declared;
-
-  // Filename fallback is only used when the byte signature is inconclusive.
   const ext = path.extname(String(filename || "")).toLowerCase();
+
   if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
   if (ext === ".png") return "image/png";
   if (ext === ".webp") return "image/webp";
 
+  // Windows/Edge can label ordinary camera/catalog JPEGs as image/dng.
+  // Do not fail the batch locally. Normalize that mislabeled upload to JPEG.
+  if (declared === "image/dng" || declared === "image/x-adobe-dng") return "image/jpeg";
+
+  if (["image/jpeg","image/png","image/webp"].includes(declared)) return declared;
+
   throw new Error(
     `Unsupported source image format (${declared || "unknown"}). ` +
-    `Please use a real JPEG, PNG or WebP file.`
+    `Use JPEG, PNG or WebP.`
   );
 }
 
@@ -380,7 +378,7 @@ http.createServer(async (req,res)=>{
   try {
     if (req.method === "POST" && req.url === "/api/generate") return await handleGenerate(req,res);
     if (req.method === "POST" && req.url === "/api/test") return await handleTest(req,res);
-    if (req.method === "GET" && req.url === "/api/health") return send(res,200,{ok:true,version:"2.5",openai_configured:!!process.env.OPENAI_API_KEY});
+    if (req.method === "GET" && req.url === "/api/health") return send(res,200,{ok:true,version:"2.6",openai_configured:!!process.env.OPENAI_API_KEY});
     return staticFile(req,res);
   } catch(e) {
     send(res,500,{ok:false,error:e.message || String(e)});

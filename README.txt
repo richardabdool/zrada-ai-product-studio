@@ -1,8 +1,8 @@
-ZRADA AI Product Studio v2.5 — RESILIENT BULK ENGINE
+ZRADA AI Product Studio v2.6 — RESILIENT BULK ENGINE
 
 BUILT ON THE WORKING v2.3 SERVER-KEY/CATEGORY SYSTEM.
 
-WHAT v2.5 FIXES
+WHAT v2.6 FIXES
 - Handles Render/hosting HTML error pages safely instead of showing:
   Unexpected token '<', '<!DOCTYPE...' is not valid JSON
 - Automatically retries temporary failures up to 3 attempts.
@@ -34,7 +34,13 @@ RECOMMENDED BULK WORKFLOW
 8. Clear Approved.
 
 
-V2.5 IMAGE MIME FIX
+V2.6 IMAGE MIME FIX
 - Detects JPEG/PNG/WebP from the actual uploaded file bytes.
 - Genuine JPEG files incorrectly labelled image/dng are sent to OpenAI as image/jpeg.
 - Existing category engine, consistency locking, retry system, approvals, ZIP export and Clear Approved remain unchanged.
+
+
+V2.6 WINDOWS JPEG/DNG COMPATIBILITY FIX
+- Normalizes .jpg/.jpeg uploads incorrectly reported by Edge/Windows as image/dng.
+- Fix applied in both browser upload handling and server processing.
+- Existing generation workflow remains unchanged.

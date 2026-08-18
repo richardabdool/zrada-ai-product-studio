@@ -121,6 +121,7 @@ async function readFile(file) {
     );
   }
 }
+const readDataURL=readFile;
 function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
 function isTransientStatus(status){return [408,425,429,500,502,503,504].includes(Number(status))}
 function friendlyHttpError(status,text){
@@ -185,7 +186,7 @@ $("#addQueue").onclick=()=>{
 };
 
 async function generateJob(j){
-  const source=await readDataURL(j.file);
+  const source=await readFile(j.file);
   const reference=state.styleRefs.get(j.styleSeed)||null;
   const payload={
     category:j.category,color:j.color,female_body:j.femaleBody,male_build:j.maleBuild,style_seed:j.styleSeed,

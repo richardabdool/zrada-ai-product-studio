@@ -74,3 +74,9 @@ v2.7.1 LOGIN FIX
 - Shows server login errors instead of silent reset.
 - Reloads only after successful session cookie creation.
 - Cache-busts login client script.
+
+
+v2.7.2 CRITICAL LOGIN SCRIPT FIX
+- Fixed JavaScript syntax error in public/app.js that prevented all client-side login code from running.
+- Validated app.js and server.js syntax with Node before packaging.
+- Keeps secure login, RGB normalization, batch retries, category rules, approvals and export unchanged.

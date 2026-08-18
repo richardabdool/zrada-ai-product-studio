@@ -120,7 +120,7 @@ async function readFile(file) {
       `Original error: ${e.message||e}`
     );
   }
-})}
+}
 function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
 function isTransientStatus(status){return [408,425,429,500,502,503,504].includes(Number(status))}
 function friendlyHttpError(status,text){

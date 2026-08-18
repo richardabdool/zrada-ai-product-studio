@@ -376,7 +376,7 @@ function staticFile(req, res) {
 
 
 // ===== v2.7 SECURE LOGIN =====
-const LOGIN_USER = process.env.ZRADA_USERNAME || "admin";
+const LOGIN_USER = String(process.env.ZRADA_USERNAME || "admin").trim();
 const LOGIN_PASS = process.env.ZRADA_PASSWORD || "";
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 const SESSION_AGE = 60*60*24*7;
@@ -420,7 +420,7 @@ async function parseSmallJson(req){
 async function loginHandler(req,res){
   if(!LOGIN_PASS) return send(res,503,{error:"Login not configured. Add ZRADA_PASSWORD in Render Environment."});
   const b=await parseSmallJson(req);
-  if(!timingEqual(b.username||"",LOGIN_USER)||!timingEqual(b.password||"",LOGIN_PASS))
+  if(!timingEqual(String(b.username||"").trim(),LOGIN_USER)||!timingEqual(String(b.password||""),LOGIN_PASS))
     return send(res,401,{error:"Incorrect username or password."});
   const token=sessionToken();
   const data=Buffer.from(JSON.stringify({ok:true}));
@@ -445,13 +445,14 @@ function logoutHandler(req,res){
 
 http.createServer(async (req,res)=>{
   try {
-    if (req.method === "POST" && req.url === "/api/login") return await loginHandler(req,res);
-    if (req.method === "POST" && req.url === "/api/logout") return logoutHandler(req,res);
-    if (req.method === "GET" && req.url === "/api/auth-status") return send(res,200,{authenticated:isAuthed(req)});
-    if (req.url.startsWith("/api/") && !isAuthed(req)) return send(res,401,{error:"LOGIN_REQUIRED"});
-    if (req.method === "POST" && req.url === "/api/generate") return await handleGenerate(req,res);
-    if (req.method === "POST" && req.url === "/api/test") return await handleTest(req,res);
-    if (req.method === "GET" && req.url === "/api/health") return send(res,200,{ok:true,version:"2.7",openai_configured:!!process.env.OPENAI_API_KEY});
+    const pathname = new URL(req.url, "https://zrada.local").pathname;
+    if (req.method === "POST" && pathname === "/api/login") return await loginHandler(req,res);
+    if (req.method === "POST" && pathname === "/api/logout") return logoutHandler(req,res);
+    if (req.method === "GET" && pathname === "/api/auth-status") return send(res,200,{authenticated:isAuthed(req)});
+    if (pathname.startsWith("/api/") && !isAuthed(req)) return send(res,401,{error:"LOGIN_REQUIRED"});
+    if (req.method === "POST" && pathname === "/api/generate") return await handleGenerate(req,res);
+    if (req.method === "POST" && pathname === "/api/test") return await handleTest(req,res);
+    if (req.method === "GET" && pathname === "/api/health") return send(res,200,{ok:true,version:"2.7.1",openai_configured:!!process.env.OPENAI_API_KEY,login_configured:!!LOGIN_PASS,username_configured:!!LOGIN_USER});
     return staticFile(req,res);
   } catch(e) {
     send(res,500,{ok:false,error:e.message || String(e)});

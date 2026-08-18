@@ -25,12 +25,18 @@ document.addEventListener("DOMContentLoaded",()=>{
           password:document.getElementById("loginPassword").value
         })
       });
-      const d=await r.json();
-      if(!r.ok) throw new Error(d.error||"Login failed.");
-      error.textContent="";
+      const raw=await r.text();
+      let d={};
+      try{ d=JSON.parse(raw); }catch(_){ d={error:raw || ("Server returned HTTP "+r.status)}; }
+      if(!r.ok) throw new Error(d.error||("Login failed (HTTP "+r.status+")."));
+      error.textContent="Login successful. Opening studio...";
+      error.className="login-success";
       document.getElementById("loginPassword").value="";
-      document.getElementById("loginGate").classList.add("hidden");
-    }catch(err){ error.textContent=err.message; }
+      setTimeout(()=>location.replace("/"),250);
+    }catch(err){
+      error.className="login-error";
+      error.textContent=err.message || "Login failed. Please try again.";
+    }
   });
   zradaAuthStatus();
 });

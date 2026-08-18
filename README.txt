@@ -66,3 +66,11 @@ SECURITY
 - Do not put login credentials or SESSION_SECRET in GitHub.
 - Login session uses HttpOnly + Secure + SameSite=Strict cookie.
 - All /api endpoints, including generation, are protected server-side.
+
+
+v2.7.1 LOGIN FIX
+- Robust /api/login route handling.
+- Trims accidental spaces from username.
+- Shows server login errors instead of silent reset.
+- Reloads only after successful session cookie creation.
+- Cache-busts login client script.

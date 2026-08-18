@@ -379,7 +379,7 @@ function staticFile(req, res) {
 const LOGIN_USER = String(process.env.ZRADA_USERNAME || "admin").trim();
 const LOGIN_PASS = process.env.ZRADA_PASSWORD || "";
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
-const SESSION_AGE = 60*60*24*7;
+const SESSION_AGE = 60*60*12;
 
 function cookieMap(req){
   const out={};
@@ -452,7 +452,7 @@ http.createServer(async (req,res)=>{
     if (pathname.startsWith("/api/") && !isAuthed(req)) return send(res,401,{error:"LOGIN_REQUIRED"});
     if (req.method === "POST" && pathname === "/api/generate") return await handleGenerate(req,res);
     if (req.method === "POST" && pathname === "/api/test") return await handleTest(req,res);
-    if (req.method === "GET" && pathname === "/api/health") return send(res,200,{ok:true,version:"2.7.3",openai_configured:!!process.env.OPENAI_API_KEY,login_configured:!!LOGIN_PASS,username_configured:!!LOGIN_USER});
+    if (req.method === "GET" && pathname === "/api/health") return send(res,200,{ok:true,version:"2.7.4",openai_configured:!!process.env.OPENAI_API_KEY,login_configured:!!LOGIN_PASS,username_configured:!!LOGIN_USER});
     return staticFile(req,res);
   } catch(e) {
     send(res,500,{ok:false,error:e.message || String(e)});

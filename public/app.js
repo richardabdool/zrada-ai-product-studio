@@ -41,7 +41,10 @@ document.addEventListener("DOMContentLoaded",()=>{
   zradaAuthStatus();
 });
 async function zradaLogout(){
-  await fetch("/api/logout",{method:"POST",credentials:"same-origin"});
+  try{ await fetch("/api/logout",{method:"POST",credentials:"same-origin"}); }catch(e){}
+  document.getElementById("loginGate").classList.remove("hidden");
+  document.getElementById("loginUsername").value="";
+  document.getElementById("loginPassword").value="";
   location.reload();
 }
 // ===== END LOGIN CLIENT =====

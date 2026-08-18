@@ -80,3 +80,10 @@ v2.7.2 CRITICAL LOGIN SCRIPT FIX
 - Fixed JavaScript syntax error in public/app.js that prevented all client-side login code from running.
 - Validated app.js and server.js syntax with Node before packaging.
 - Keeps secure login, RGB normalization, batch retries, category rules, approvals and export unchanged.
+
+
+v2.8.0 RAW/DNG SUPPORT
+- Real .DNG files bypass browser Canvas decoding.
+- Server decodes DNG with dcraw and converts decoded TIFF to JPEG with sharp.
+- Embedded JPEG thumbnail fallback is used if full RAW decoding fails.
+- JPEG/PNG/WebP workflow is unchanged.

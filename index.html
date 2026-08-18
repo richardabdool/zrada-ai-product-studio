@@ -1,0 +1,153 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZRADA AI Product Studio v2.8.0</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div id="loginGate" class="login-gate">
+  <div class="login-card">
+    <div class="login-logo">Z</div>
+    <h1>ZRADA</h1>
+    <div class="login-subtitle">AI PRODUCT STUDIO</div>
+    <form id="loginForm">
+      <label>Username</label>
+      <input id="loginUsername" autocomplete="username" required>
+      <label>Password</label>
+      <input id="loginPassword" type="password" autocomplete="current-password" required>
+      <button type="submit">Log In</button>
+      <div id="loginError"></div>
+    </form>
+  </div>
+</div>
+<div class="shell">
+<aside>
+  <div class="brand"><div class="mark">Z</div><div><b>ZRADA</b><small>AI PRODUCT STUDIO</small></div></div>
+  <button class="nav active" data-view="dashboard">Dashboard</button>
+  <button class="nav" data-view="batch">New Batch</button>
+  <button class="nav" data-view="queue">Generation Queue</button>
+  <button class="nav" data-view="review">Review & Export</button>
+  <button class="nav" data-view="settings">Settings</button>
+  <button class="nav logout-nav" type="button" onclick="zradaLogout()">Log Out</button>
+  <div class="version">V2.7 • RESILIENT BULK ENGINE</div>
+</aside>
+
+<main>
+<header><div><h1 id="pageTitle">Dashboard</h1><p id="pageSub">Category-specific AI fashion photography.</p></div><button class="primary" onclick="showView('batch')">+ New Batch</button></header>
+
+<section id="dashboard" class="view active">
+  <div class="hero">
+    <div>
+      <span class="eyebrow">ZRADA AI PRODUCT STUDIO</span>
+      <h2>Every category gets its own photography rules.</h2>
+      <p>Dresses, skirts, women’s jeans, men’s T-shirts, men’s jeans, handbags, underwear and footwear no longer share one generic prompt.</p>
+      <button class="primary big" onclick="showView('batch')">Start Production</button>
+    </div>
+    <div class="heroCard"><small>STYLE CONSISTENCY</small><b>1 style = 1 model</b><span>All colors reuse the first generated master image for that style.</span></div>
+  </div>
+  <div class="stats"><div><span>Styles</span><b id="statStyles">0</b></div><div><span>Queued</span><b id="statQueued">0</b></div><div><span>Generated</span><b id="statDone">0</b></div><div><span>Approved</span><b id="statApproved">0</b></div></div>
+  <div class="panel categoryMatrix">
+    <h3>Category Engine</h3>
+    <div class="matrix">
+      <div><b>Women</b><span>Dress • Top • Skirt • Jeans • Pants</span></div>
+      <div><b>Men</b><span>T-Shirt • Polo/Shirt • Jeans • Pants/Shorts</span></div>
+      <div><b>Products</b><span>Handbags • Bras • Panties • Accessories • Household</span></div>
+      <div><b>Footwear</b><span>Shoes • Slippers</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="batch" class="view">
+<div class="grid2">
+  <div class="panel">
+    <h3>1. Product Category</h3>
+    <label>Exact Category
+      <select id="category">
+        <optgroup label="Women's Clothing">
+          <option value="WOMENS_DRESS">Women's Dress</option>
+          <option value="WOMENS_TOP">Women's Top / Blouse</option>
+          <option value="WOMENS_SKIRT">Women's Skirt</option>
+          <option value="WOMENS_JEANS">Women's Jeans</option>
+          <option value="WOMENS_PANTS">Women's Pants</option>
+        </optgroup>
+        <optgroup label="Men's Clothing">
+          <option value="MENS_TSHIRT">Men's T-Shirt</option>
+          <option value="MENS_POLO_SHIRT">Men's Polo / Shirt</option>
+          <option value="MENS_JEANS">Men's Jeans</option>
+          <option value="MENS_PANTS_SHORTS">Men's Pants / Shorts</option>
+        </optgroup>
+        <optgroup label="Handbags">
+          <option value="HANDBAG_LIFESTYLE">Handbag — Lifestyle Model</option>
+          <option value="HANDBAG_PRODUCT">Handbag — Product Only</option>
+        </optgroup>
+        <optgroup label="Underwear">
+          <option value="BRA_PRODUCT">Bra — Product Only</option>
+          <option value="PANTY_PRODUCT">Panty — Product Only</option>
+        </optgroup>
+        <optgroup label="Other">
+          <option value="SHOES_SLIPPERS">Shoes / Slippers</option>
+          <option value="ACCESSORY_PRODUCT">Accessory — Product Only</option>
+          <option value="HOUSEHOLD_PRODUCT">Household — Product Only</option>
+        </optgroup>
+      </select>
+    </label>
+
+    <div class="grid2 tight">
+      <label>Female Body Variety
+        <select id="femaleBody"><option>Auto</option><option>Slim</option><option>Athletic</option><option>Curvy</option><option>BBL / Hourglass</option><option>Plus Size</option></select>
+      </label>
+      <label>Male Build
+        <select id="maleBuild"><option>Auto</option><option>Lean</option><option>Athletic</option><option>Plus Size</option></select>
+      </label>
+    </div>
+
+    <div id="categoryHelp" class="note"></div>
+
+    <h3 class="mt">2. Upload Parent Folder</h3>
+    <label class="drop"><input id="folderInput" type="file" webkitdirectory directory multiple accept="image/*"><strong>Select Product Folder</strong><span>Example: RD-1254 / Green.jpg / Orange.jpg / Purple.jpg</span></label>
+    <div id="batchSummary" class="note hidden"></div>
+    <div class="actions"><button class="secondary" id="clearBatch">Clear</button><button class="primary" id="addQueue" disabled>Add to Queue</button></div>
+  </div>
+  <div class="panel"><h3>Detected Styles & Colors</h3><div id="preview" class="empty">No folder selected.</div></div>
+</div>
+</section>
+
+<section id="queue" class="view">
+<div class="panel">
+  <div class="panelHead"><div><h3>Generation Queue</h3><p>The first successful color becomes the reference for the remaining colors of that style. Temporary server interruptions are retried automatically.</p></div><div class="queueActions"><button class="secondary" id="retryFailedBtn">Retry Failed Only</button><button class="primary" id="generateBtn">Generate Images</button></div></div>
+  <div class="progressMeta"><span id="progressText">0 of 0 generated</span><b id="progressPct">0%</b></div><div class="track"><div id="progressBar"></div></div>
+  <div id="queueList" class="empty">No images queued.</div>
+</div>
+</section>
+
+<section id="review" class="view">
+<div class="panel">
+  <div class="panelHead"><div><h3>Review & Export</h3><p>Approve the photos you want to keep. After downloading, clear approved products to keep the workspace clean.</p></div><div class="actions"><button class="secondary" id="clearApproved">Clear Approved</button><button class="primary" id="downloadApproved">Download Approved ZIP</button></div></div>
+  <div id="reviewGrid" class="reviewGrid"><div class="empty">Generated images will appear here.</div></div>
+</div>
+</section>
+
+<section id="settings" class="view">
+<div class="grid2">
+  <div class="panel">
+    <h3>OpenAI Connection</h3>
+    <p class="muted">Your API key is stored securely on the Render server and is never entered into this browser.</p>
+    <div class="actions"><button class="secondary" id="testKey">Test Server Connection</button></div>
+    <div id="apiStatus" class="note">Checking server configuration...</div>
+  </div>
+  <div class="panel">
+    <h3>Image Settings</h3>
+    <label>Model<select id="model"><option value="gpt-image-2">GPT Image 2</option><option value="gpt-image-1.5">GPT Image 1.5</option><option value="gpt-image-1">GPT Image 1</option></select></label>
+    <label>Quality<select id="quality"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label>
+    <label>Portrait Size<select id="size"><option value="1024x1536">1024 × 1536</option><option value="2160x3840">2160 × 3840</option></select></label>
+  </div>
+</div>
+</section>
+</main>
+</div>
+<div id="toast" class="toast"></div>
+<script src="/app.js?v=280"></script>
+</body>
+</html>

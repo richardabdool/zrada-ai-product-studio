@@ -1,6 +1,6 @@
 {
   "name": "zrada-ai-product-studio",
-  "version": "2.2.0",
+  "version": "2.8.0",
   "private": true,
   "description": "ZRADA AI Product Studio - category-specific fashion image generation",
   "scripts": {
@@ -8,5 +8,9 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "dcraw": "^1.0.3",
+    "sharp": "^0.35.3"
   }
 }

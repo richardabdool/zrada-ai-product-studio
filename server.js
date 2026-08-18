@@ -3,6 +3,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const dcraw = require("dcraw");
 
 const PORT = process.env.PORT || 8787;
 const PUBLIC = path.join(__dirname, "public");
@@ -278,8 +279,8 @@ function detectSupportedImageMime(buffer, declaredMime="", filename="") {
   if (ext === ".webp") return "image/webp";
 
   // Windows/Edge can label ordinary camera/catalog JPEGs as image/dng.
-  // Do not fail the batch locally. Normalize that mislabeled upload to JPEG.
-  if (declared === "image/dng" || declared === "image/x-adobe-dng") return "image/jpeg";
+  if (declared === "image/dng" || declared === "image/x-adobe-dng" ||
+      String(filename||"").toLowerCase().endsWith(".dng")) return "image/dng";
 
   if (["image/jpeg","image/png","image/webp"].includes(declared)) return declared;
 
@@ -297,12 +298,49 @@ function dataUrlToBuffer(data, filename="") {
   return {mime, buffer};
 }
 
+
+async function normalizeSourceForOpenAI(source, filename="source.jpg") {
+  const lower=String(filename||"").toLowerCase();
+  const isDng = source.mime === "image/dng" || lower.endsWith(".dng");
+  if (!isDng) return {mime:source.mime, buffer:source.buffer, filename};
+
+  try {
+    // dcraw.js decodes camera RAW/DNG and exports a standard TIFF.
+    // TIFF is then converted to JPEG by sharp if available; otherwise we
+    // extract the embedded camera JPEG preview as a compatibility fallback.
+    let rawOut;
+    try {
+      rawOut = dcraw(source.buffer, {
+        exportAsTiff:true,
+        useCameraWhiteBalance:true,
+        setHalfSizeMode:true
+      });
+    } catch (fullErr) {
+      rawOut = dcraw(source.buffer, {extractThumbnail:true});
+    }
+
+    const outBuf=Buffer.from(rawOut);
+    // dcraw thumbnail output is commonly JPEG; detect it directly.
+    if(outBuf.length>3 && outBuf[0]===0xff && outBuf[1]===0xd8 && outBuf[2]===0xff){
+      return {mime:"image/jpeg",buffer:outBuf,filename:filename.replace(/\.dng$/i,".jpg")};
+    }
+
+    // If decoder returned TIFF, convert to JPEG using sharp.
+    const sharp=require("sharp");
+    const jpg=await sharp(outBuf).rotate().jpeg({quality:92,mozjpeg:true}).toBuffer();
+    return {mime:"image/jpeg",buffer:jpg,filename:filename.replace(/\.dng$/i,".jpg")};
+  } catch(e) {
+    throw new Error(`Could not decode RAW/DNG ${filename}. ${e?.message||e}`);
+  }
+}
+
 async function handleGenerate(req, res) {
   const body = await parseJson(req);
   const key = String(process.env.OPENAI_API_KEY || "").trim();
   if (!key) return send(res, 500, {ok:false, error:"OpenAI API key is not configured on the server. Add OPENAI_API_KEY in Render Environment settings."});
 
-  const source = dataUrlToBuffer(body.source_base64, body.filename || "source.jpg");
+  const sourceRaw = dataUrlToBuffer(body.source_base64, body.filename || "source.jpg");
+  const source = await normalizeSourceForOpenAI(sourceRaw, body.filename || "source.jpg");
   const ref = body.reference_base64 ? dataUrlToBuffer(body.reference_base64, "style-reference.png") : null;
   const meta = buildPrompt({
     category: body.category,
@@ -319,7 +357,7 @@ async function handleGenerate(req, res) {
   form.append("size", body.size || "1024x1536");
   form.append("quality", body.quality || "high");
   form.append("output_format", "png");
-  form.append("image[]", new Blob([source.buffer], {type: source.mime}), body.filename || "source.jpg");
+  form.append("image[]", new Blob([source.buffer], {type: source.mime}), source.filename || "source.jpg");
   if (ref) form.append("image[]", new Blob([ref.buffer], {type: ref.mime}), "style-reference.png");
 
   const controller=new AbortController();
@@ -452,7 +490,7 @@ http.createServer(async (req,res)=>{
     if (pathname.startsWith("/api/") && !isAuthed(req)) return send(res,401,{error:"LOGIN_REQUIRED"});
     if (req.method === "POST" && pathname === "/api/generate") return await handleGenerate(req,res);
     if (req.method === "POST" && pathname === "/api/test") return await handleTest(req,res);
-    if (req.method === "GET" && pathname === "/api/health") return send(res,200,{ok:true,version:"2.7.4",openai_configured:!!process.env.OPENAI_API_KEY,login_configured:!!LOGIN_PASS,username_configured:!!LOGIN_USER});
+    if (req.method === "GET" && pathname === "/api/health") return send(res,200,{ok:true,version:"2.8.0",openai_configured:!!process.env.OPENAI_API_KEY,login_configured:!!LOGIN_PASS,username_configured:!!LOGIN_USER});
     return staticFile(req,res);
   } catch(e) {
     send(res,500,{ok:false,error:e.message || String(e)});

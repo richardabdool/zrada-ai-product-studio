@@ -87,3 +87,11 @@ v2.8.0 RAW/DNG SUPPORT
 - Server decodes DNG with dcraw and converts decoded TIFF to JPEG with sharp.
 - Embedded JPEG thumbnail fallback is used if full RAW decoding fails.
 - JPEG/PNG/WebP workflow is unchanged.
+
+
+v2.9.0 RAW/DNG PIPELINE FIX
+- Real .DNG files now bypass browser Canvas decoding entirely.
+- Original RAW bytes are sent to the authenticated Render server.
+- Server identifies DNG before normal JPEG/PNG/WebP MIME validation.
+- Server decodes DNG using dcraw, then converts TIFF output to JPEG with sharp.
+- Normal JPEG/PNG/WebP images retain the existing RGB normalization workflow.

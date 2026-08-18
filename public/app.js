@@ -78,50 +78,51 @@ function updateCategory(){$("#categoryHelp").textContent=categoryHelp[$("#catego
 $("#category").onchange=updateCategory;updateCategory();
 
 function colorName(n){return n.replace(/\.[^.]+$/,"").replace(/[_-]+/g," ").trim()}
+function fileToDataURL(file){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(r.result);
+    r.onerror=()=>reject(r.error||new Error("Could not read file."));
+    r.readAsDataURL(file);
+  });
+}
+
 async function readFile(file) {
-  // v2.7: normalize every uploaded product image to a fresh standard RGB JPEG.
-  // This fixes CMYK/progressive/unusual JPEG modes and Windows files reported as image/dng.
+  const name=String(file?.name||"").toLowerCase();
+  const type=String(file?.type||"").toLowerCase();
+
+  // IMPORTANT: real DNG/RAW files must be sent unchanged to the server.
+  // Browsers cannot decode RAW reliably. Server-side dcraw handles them.
+  if(name.endsWith(".dng") || type==="image/dng" || type==="image/x-adobe-dng"){
+    return await fileToDataURL(file);
+  }
+
+  // Normal catalog images are standardized to RGB JPEG in the browser.
   try {
     let bitmap;
     if ("createImageBitmap" in window) {
       bitmap = await createImageBitmap(file, {imageOrientation:"from-image"});
     } else {
-      const objectUrl = URL.createObjectURL(file);
-      bitmap = await new Promise((resolve,reject)=>{
+      const objectUrl=URL.createObjectURL(file);
+      bitmap=await new Promise((resolve,reject)=>{
         const img=new Image();
-        img.onload=()=>resolve(img);
-        img.onerror=()=>reject(new Error("Browser could not decode this image."));
+        img.onload=()=>{URL.revokeObjectURL(objectUrl);resolve(img)};
+        img.onerror=()=>{URL.revokeObjectURL(objectUrl);reject(new Error("Browser could not decode this image."))};
         img.src=objectUrl;
       });
     }
-
-    const w = bitmap.width || bitmap.naturalWidth;
-    const h = bitmap.height || bitmap.naturalHeight;
-    if (!w || !h) throw new Error("Image has invalid dimensions.");
-
-    // Keep originals sharp but avoid enormous payloads that can overload Render.
-    const MAX = 3000;
-    const scale = Math.min(1, MAX / Math.max(w,h));
-    const cw = Math.max(1, Math.round(w*scale));
-    const ch = Math.max(1, Math.round(h*scale));
-
+    const w=bitmap.width||bitmap.naturalWidth, h=bitmap.height||bitmap.naturalHeight;
+    if(!w||!h) throw new Error("Image has invalid dimensions.");
+    const MAX=3000, scale=Math.min(1,MAX/Math.max(w,h));
+    const cw=Math.max(1,Math.round(w*scale)), ch=Math.max(1,Math.round(h*scale));
     const canvas=document.createElement("canvas");
     canvas.width=cw; canvas.height=ch;
     const ctx=canvas.getContext("2d",{alpha:false});
-    ctx.fillStyle="#ffffff";
-    ctx.fillRect(0,0,cw,ch);
-    ctx.drawImage(bitmap,0,0,cw,ch);
-
-    if (bitmap.close) bitmap.close();
-
-    // JPEG export from canvas is standard browser-decoded RGB/sRGB data.
+    ctx.fillStyle="#fff"; ctx.fillRect(0,0,cw,ch); ctx.drawImage(bitmap,0,0,cw,ch);
+    if(bitmap.close) bitmap.close();
     return canvas.toDataURL("image/jpeg",0.95);
-  } catch (e) {
-    throw new Error(
-      `Could not normalize ${file?.name||"image"}. ` +
-      `The file may not contain a browser-decodable JPEG/PNG/WebP image. ` +
-      `Original error: ${e.message||e}`
-    );
+  } catch(e) {
+    throw new Error(`Could not normalize ${file?.name||"image"}. ${e.message||e}`);
   }
 }
 const readDataURL=readFile;

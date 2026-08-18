@@ -291,11 +291,18 @@ function detectSupportedImageMime(buffer, declaredMime="", filename="") {
 }
 
 function dataUrlToBuffer(data, filename="") {
-  const m = String(data || "").match(/^data:([^;]+);base64,(.+)$/s);
-  if (!m) throw new Error("Invalid image data.");
-  const buffer = Buffer.from(m[2], "base64");
-  const mime = detectSupportedImageMime(buffer, m[1], filename);
-  return {mime, buffer};
+  const m=String(data||"").match(/^data:([^;]+);base64,(.+)$/s);
+  if(!m) throw new Error("Invalid image data.");
+  const buffer=Buffer.from(m[2],"base64");
+  const lower=String(filename||"").toLowerCase();
+  const declared=String(m[1]||"").toLowerCase();
+
+  // Preserve genuine RAW/DNG bytes for server-side decoding.
+  if(lower.endsWith(".dng") || declared==="image/dng" || declared==="image/x-adobe-dng"){
+    return {mime:"image/dng",buffer};
+  }
+  const mime=detectSupportedImageMime(buffer,m[1],filename);
+  return {mime,buffer};
 }
 
 
@@ -330,7 +337,7 @@ async function normalizeSourceForOpenAI(source, filename="source.jpg") {
     const jpg=await sharp(outBuf).rotate().jpeg({quality:92,mozjpeg:true}).toBuffer();
     return {mime:"image/jpeg",buffer:jpg,filename:filename.replace(/\.dng$/i,".jpg")};
   } catch(e) {
-    throw new Error(`Could not decode RAW/DNG ${filename}. ${e?.message||e}`);
+    throw new Error(`RAW/DNG conversion failed for ${filename}. The original RAW file reached the server, but the decoder could not convert it. ${e?.message||e}`);
   }
 }
 
@@ -490,7 +497,7 @@ http.createServer(async (req,res)=>{
     if (pathname.startsWith("/api/") && !isAuthed(req)) return send(res,401,{error:"LOGIN_REQUIRED"});
     if (req.method === "POST" && pathname === "/api/generate") return await handleGenerate(req,res);
     if (req.method === "POST" && pathname === "/api/test") return await handleTest(req,res);
-    if (req.method === "GET" && pathname === "/api/health") return send(res,200,{ok:true,version:"2.8.0",openai_configured:!!process.env.OPENAI_API_KEY,login_configured:!!LOGIN_PASS,username_configured:!!LOGIN_USER});
+    if (req.method === "GET" && pathname === "/api/health") return send(res,200,{ok:true,version:"2.9.0",openai_configured:!!process.env.OPENAI_API_KEY,login_configured:!!LOGIN_PASS,username_configured:!!LOGIN_USER});
     return staticFile(req,res);
   } catch(e) {
     send(res,500,{ok:false,error:e.message || String(e)});

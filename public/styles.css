@@ -15,3 +15,12 @@ main{margin-left:235px;width:calc(100% - 235px);padding:28px 34px 55px}header{di
 .queueActions{display:flex;gap:8px;align-items:center}
 .status small{font-size:9px;font-weight:700}
 button:disabled{opacity:.55;cursor:not-allowed}
+
+/* v2.7 Secure Login */
+.login-gate{position:fixed;inset:0;z-index:99999;background:#111;display:flex;align-items:center;justify-content:center;padding:24px}
+.login-gate.hidden{display:none}.login-card{width:min(420px,100%);box-sizing:border-box;background:#f7f3ee;border-radius:18px;padding:38px;box-shadow:0 24px 70px rgba(0,0,0,.5)}
+.login-logo{width:54px;height:54px;border-radius:12px;background:#b50f25;color:#fff;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800}
+.login-card h1{margin:14px 0 0;letter-spacing:3px}.login-subtitle{margin:3px 0 25px;color:#777;font-size:11px;letter-spacing:2px}
+.login-card label{display:block;font-weight:700;margin:14px 0 6px}.login-card input{width:100%;box-sizing:border-box;padding:13px;border:1px solid #d8d0c8;border-radius:9px;font-size:16px}
+.login-card button{width:100%;margin-top:22px;padding:14px;border:0;border-radius:9px;background:#b50f25;color:#fff;font-weight:800;font-size:16px;cursor:pointer}
+#loginError{color:#b50f25;margin-top:12px;min-height:20px}

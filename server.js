@@ -374,11 +374,84 @@ function staticFile(req, res) {
   send(res,200,fs.readFileSync(file),types[ext]||"application/octet-stream");
 }
 
+
+// ===== v2.7 SECURE LOGIN =====
+const LOGIN_USER = process.env.ZRADA_USERNAME || "admin";
+const LOGIN_PASS = process.env.ZRADA_PASSWORD || "";
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
+const SESSION_AGE = 60*60*24*7;
+
+function cookieMap(req){
+  const out={};
+  String(req.headers.cookie||"").split(";").forEach(part=>{
+    const i=part.indexOf("=");
+    if(i>0) out[part.slice(0,i).trim()]=decodeURIComponent(part.slice(i+1).trim());
+  });
+  return out;
+}
+function timingEqual(a,b){
+  const aa=Buffer.from(String(a)), bb=Buffer.from(String(b));
+  return aa.length===bb.length && crypto.timingSafeEqual(aa,bb);
+}
+function sessionToken(){
+  const exp=Math.floor(Date.now()/1000)+SESSION_AGE;
+  const payload=`${LOGIN_USER}.${exp}`;
+  const sig=crypto.createHmac("sha256",SESSION_SECRET).update(payload).digest("hex");
+  return `${payload}.${sig}`;
+}
+function isAuthed(req){
+  const token=cookieMap(req).zrada_session;
+  if(!token) return false;
+  const p=token.split(".");
+  if(p.length!==3) return false;
+  const [u,e,sig]=p;
+  if(u!==LOGIN_USER || Number(e)<Math.floor(Date.now()/1000)) return false;
+  const expected=crypto.createHmac("sha256",SESSION_SECRET).update(`${u}.${e}`).digest("hex");
+  return timingEqual(sig,expected);
+}
+async function parseSmallJson(req){
+  return await new Promise((resolve,reject)=>{
+    let d="";
+    req.on("data",c=>{d+=c;if(d.length>1024*64){reject(new Error("Request too large"));req.destroy();}});
+    req.on("end",()=>{try{resolve(JSON.parse(d||"{}"))}catch(e){reject(e)}});
+    req.on("error",reject);
+  });
+}
+async function loginHandler(req,res){
+  if(!LOGIN_PASS) return send(res,503,{error:"Login not configured. Add ZRADA_PASSWORD in Render Environment."});
+  const b=await parseSmallJson(req);
+  if(!timingEqual(b.username||"",LOGIN_USER)||!timingEqual(b.password||"",LOGIN_PASS))
+    return send(res,401,{error:"Incorrect username or password."});
+  const token=sessionToken();
+  const data=Buffer.from(JSON.stringify({ok:true}));
+  res.writeHead(200,{
+    "Content-Type":"application/json; charset=utf-8",
+    "Content-Length":data.length,
+    "Set-Cookie":`zrada_session=${encodeURIComponent(token)}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${SESSION_AGE}`,
+    "Cache-Control":"no-store","X-Content-Type-Options":"nosniff"
+  });
+  res.end(data);
+}
+function logoutHandler(req,res){
+  const data=Buffer.from(JSON.stringify({ok:true}));
+  res.writeHead(200,{
+    "Content-Type":"application/json; charset=utf-8",
+    "Content-Length":data.length,
+    "Set-Cookie":"zrada_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0",
+    "Cache-Control":"no-store"
+  });
+  res.end(data);
+}
+
 http.createServer(async (req,res)=>{
   try {
+    if (req.method === "POST" && req.url === "/api/login") return await loginHandler(req,res);
+    if (req.method === "POST" && req.url === "/api/logout") return logoutHandler(req,res);
+    if (req.method === "GET" && req.url === "/api/auth-status") return send(res,200,{authenticated:isAuthed(req)});
+    if (req.url.startsWith("/api/") && !isAuthed(req)) return send(res,401,{error:"LOGIN_REQUIRED"});
     if (req.method === "POST" && req.url === "/api/generate") return await handleGenerate(req,res);
     if (req.method === "POST" && req.url === "/api/test") return await handleTest(req,res);
-    if (req.method === "GET" && req.url === "/api/health") return send(res,200,{ok:true,version:"2.6",openai_configured:!!process.env.OPENAI_API_KEY});
+    if (req.method === "GET" && req.url === "/api/health") return send(res,200,{ok:true,version:"2.7",openai_configured:!!process.env.OPENAI_API_KEY});
     return staticFile(req,res);
   } catch(e) {
     send(res,500,{ok:false,error:e.message || String(e)});

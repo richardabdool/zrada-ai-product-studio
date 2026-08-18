@@ -3,10 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ZRADA AI Product Studio v2.6</title>
+<title>ZRADA AI Product Studio v2.7</title>
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+<div id="loginGate" class="login-gate">
+  <div class="login-card">
+    <div class="login-logo">Z</div>
+    <h1>ZRADA</h1>
+    <div class="login-subtitle">AI PRODUCT STUDIO</div>
+    <form id="loginForm">
+      <label>Username</label>
+      <input id="loginUsername" autocomplete="username" required>
+      <label>Password</label>
+      <input id="loginPassword" type="password" autocomplete="current-password" required>
+      <button type="submit">Log In</button>
+      <div id="loginError"></div>
+    </form>
+  </div>
+</div>
 <div class="shell">
 <aside>
   <div class="brand"><div class="mark">Z</div><div><b>ZRADA</b><small>AI PRODUCT STUDIO</small></div></div>
@@ -15,7 +30,7 @@
   <button class="nav" data-view="queue">Generation Queue</button>
   <button class="nav" data-view="review">Review & Export</button>
   <button class="nav" data-view="settings">Settings</button>
-  <div class="version">V2.6 • RESILIENT BULK ENGINE</div>
+  <div class="version">V2.7 • RESILIENT BULK ENGINE</div>
 </aside>
 
 <main>

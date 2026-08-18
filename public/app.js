@@ -1,4 +1,46 @@
 
+// ===== v2.7 LOGIN CLIENT =====
+async function zradaAuthStatus(){
+  try{
+    const r=await fetch("/api/auth-status",{credentials:"same-origin"});
+    const d=await r.json();
+    document.getElementById("loginGate").classList.toggle("hidden",!!d.authenticated);
+  }catch(e){
+    document.getElementById("loginGate").classList.remove("hidden");
+  }
+}
+document.addEventListener("DOMContentLoaded",()=>{
+  const form=document.getElementById("loginForm");
+  if(form) form.addEventListener("submit",async e=>{
+    e.preventDefault();
+    const error=document.getElementById("loginError");
+    error.textContent="Signing in...";
+    try{
+      const r=await fetch("/api/login",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        credentials:"same-origin",
+        body:JSON.stringify({
+          username:document.getElementById("loginUsername").value,
+          password:document.getElementById("loginPassword").value
+        })
+      });
+      const d=await r.json();
+      if(!r.ok) throw new Error(d.error||"Login failed.");
+      error.textContent="";
+      document.getElementById("loginPassword").value="";
+      document.getElementById("loginGate").classList.add("hidden");
+    }catch(err){ error.textContent=err.message; }
+  });
+  zradaAuthStatus();
+});
+async function zradaLogout(){
+  await fetch("/api/logout",{method:"POST",credentials:"same-origin"});
+  location.reload();
+}
+// ===== END LOGIN CLIENT =====
+
+
 const state={files:[],groups:{},jobs:[],styleRefs:new Map(),running:false};
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const categoryHelp={
@@ -27,7 +69,52 @@ function updateCategory(){$("#categoryHelp").textContent=categoryHelp[$("#catego
 $("#category").onchange=updateCategory;updateCategory();
 
 function colorName(n){return n.replace(/\.[^.]+$/,"").replace(/[_-]+/g," ").trim()}
-function readDataURL(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
+async function readFile(file) {
+  // v2.7: normalize every uploaded product image to a fresh standard RGB JPEG.
+  // This fixes CMYK/progressive/unusual JPEG modes and Windows files reported as image/dng.
+  try {
+    let bitmap;
+    if ("createImageBitmap" in window) {
+      bitmap = await createImageBitmap(file, {imageOrientation:"from-image"});
+    } else {
+      const objectUrl = URL.createObjectURL(file);
+      bitmap = await new Promise((resolve,reject)=>{
+        const img=new Image();
+        img.onload=()=>resolve(img);
+        img.onerror=()=>reject(new Error("Browser could not decode this image."));
+        img.src=objectUrl;
+      });
+    }
+
+    const w = bitmap.width || bitmap.naturalWidth;
+    const h = bitmap.height || bitmap.naturalHeight;
+    if (!w || !h) throw new Error("Image has invalid dimensions.");
+
+    // Keep originals sharp but avoid enormous payloads that can overload Render.
+    const MAX = 3000;
+    const scale = Math.min(1, MAX / Math.max(w,h));
+    const cw = Math.max(1, Math.round(w*scale));
+    const ch = Math.max(1, Math.round(h*scale));
+
+    const canvas=document.createElement("canvas");
+    canvas.width=cw; canvas.height=ch;
+    const ctx=canvas.getContext("2d",{alpha:false});
+    ctx.fillStyle="#ffffff";
+    ctx.fillRect(0,0,cw,ch);
+    ctx.drawImage(bitmap,0,0,cw,ch);
+
+    if (bitmap.close) bitmap.close();
+
+    // JPEG export from canvas is standard browser-decoded RGB/sRGB data.
+    return canvas.toDataURL("image/jpeg",0.95);
+  } catch (e) {
+    throw new Error(
+      `Could not normalize ${file?.name||"image"}. ` +
+      `The file may not contain a browser-decodable JPEG/PNG/WebP image. ` +
+      `Original error: ${e.message||e}`
+    );
+  }
+})}
 function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
 function isTransientStatus(status){return [408,425,429,500,502,503,504].includes(Number(status))}
 function friendlyHttpError(status,text){

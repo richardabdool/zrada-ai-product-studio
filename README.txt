@@ -44,3 +44,25 @@ V2.6 WINDOWS JPEG/DNG COMPATIBILITY FIX
 - Normalizes .jpg/.jpeg uploads incorrectly reported by Edge/Windows as image/dng.
 - Fix applied in both browser upload handling and server processing.
 - Existing generation workflow remains unchanged.
+
+
+V2.7 SECURE LOGIN + RGB IMAGE NORMALIZATION
+
+NEW IMAGE FIX
+- Every uploaded source image is decoded by the browser and re-exported as a fresh RGB JPEG before it is sent to Render/OpenAI.
+- Fixes many CMYK JPEG, unusual JPEG mode, browser image/dng MIME, and malformed metadata problems.
+- Source images are capped at 3000 px on the longest side before transmission to keep Render payloads manageable.
+- JPEG normalization quality: 95%.
+
+RENDER ENVIRONMENT VARIABLES TO ADD
+ZRADA_USERNAME = choose your username
+ZRADA_PASSWORD = choose a strong password
+SESSION_SECRET = 23a254285cfc3f9569147b384784ca58131e917f541a18b640a44891304b7cd6
+
+KEEP EXISTING
+OPENAI_API_KEY = leave your current key unchanged.
+
+SECURITY
+- Do not put login credentials or SESSION_SECRET in GitHub.
+- Login session uses HttpOnly + Secure + SameSite=Strict cookie.
+- All /api endpoints, including generation, are protected server-side.

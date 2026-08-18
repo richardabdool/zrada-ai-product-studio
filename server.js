@@ -291,55 +291,13 @@ function detectSupportedImageMime(buffer, declaredMime="", filename="") {
 }
 
 function dataUrlToBuffer(data, filename="") {
-  const m=String(data||"").match(/^data:([^;]+);base64,(.+)$/s);
-  if(!m) throw new Error("Invalid image data.");
-  const buffer=Buffer.from(m[2],"base64");
-  const lower=String(filename||"").toLowerCase();
-  const declared=String(m[1]||"").toLowerCase();
-
-  // Preserve genuine RAW/DNG bytes for server-side decoding.
-  if(lower.endsWith(".dng") || declared==="image/dng" || declared==="image/x-adobe-dng"){
-    return {mime:"image/dng",buffer};
-  }
-  const mime=detectSupportedImageMime(buffer,m[1],filename);
-  return {mime,buffer};
+  const m = String(data || "").match(/^data:([^;]+);base64,(.+)$/s);
+  if (!m) throw new Error("Invalid image data.");
+  const buffer = Buffer.from(m[2], "base64");
+  const mime = detectSupportedImageMime(buffer, m[1], filename);
+  return {mime, buffer};
 }
 
-
-async function normalizeSourceForOpenAI(source, filename="source.jpg") {
-  const lower=String(filename||"").toLowerCase();
-  const isDng = source.mime === "image/dng" || lower.endsWith(".dng");
-  if (!isDng) return {mime:source.mime, buffer:source.buffer, filename};
-
-  try {
-    // dcraw.js decodes camera RAW/DNG and exports a standard TIFF.
-    // TIFF is then converted to JPEG by sharp if available; otherwise we
-    // extract the embedded camera JPEG preview as a compatibility fallback.
-    let rawOut;
-    try {
-      rawOut = dcraw(source.buffer, {
-        exportAsTiff:true,
-        useCameraWhiteBalance:true,
-        setHalfSizeMode:true
-      });
-    } catch (fullErr) {
-      rawOut = dcraw(source.buffer, {extractThumbnail:true});
-    }
-
-    const outBuf=Buffer.from(rawOut);
-    // dcraw thumbnail output is commonly JPEG; detect it directly.
-    if(outBuf.length>3 && outBuf[0]===0xff && outBuf[1]===0xd8 && outBuf[2]===0xff){
-      return {mime:"image/jpeg",buffer:outBuf,filename:filename.replace(/\.dng$/i,".jpg")};
-    }
-
-    // If decoder returned TIFF, convert to JPEG using sharp.
-    const sharp=require("sharp");
-    const jpg=await sharp(outBuf).rotate().jpeg({quality:92,mozjpeg:true}).toBuffer();
-    return {mime:"image/jpeg",buffer:jpg,filename:filename.replace(/\.dng$/i,".jpg")};
-  } catch(e) {
-    throw new Error(`RAW/DNG conversion failed for ${filename}. The original RAW file reached the server, but the decoder could not convert it. ${e?.message||e}`);
-  }
-}
 
 async function handleGenerate(req, res) {
   const body = await parseJson(req);
@@ -347,7 +305,7 @@ async function handleGenerate(req, res) {
   if (!key) return send(res, 500, {ok:false, error:"OpenAI API key is not configured on the server. Add OPENAI_API_KEY in Render Environment settings."});
 
   const sourceRaw = dataUrlToBuffer(body.source_base64, body.filename || "source.jpg");
-  const source = await normalizeSourceForOpenAI(sourceRaw, body.filename || "source.jpg");
+  const source = {...sourceRaw, filename: body.filename || "source.jpg"};
   const ref = body.reference_base64 ? dataUrlToBuffer(body.reference_base64, "style-reference.png") : null;
   const meta = buildPrompt({
     category: body.category,
@@ -497,7 +455,7 @@ http.createServer(async (req,res)=>{
     if (pathname.startsWith("/api/") && !isAuthed(req)) return send(res,401,{error:"LOGIN_REQUIRED"});
     if (req.method === "POST" && pathname === "/api/generate") return await handleGenerate(req,res);
     if (req.method === "POST" && pathname === "/api/test") return await handleTest(req,res);
-    if (req.method === "GET" && pathname === "/api/health") return send(res,200,{ok:true,version:"2.9.0",openai_configured:!!process.env.OPENAI_API_KEY,login_configured:!!LOGIN_PASS,username_configured:!!LOGIN_USER});
+    if (req.method === "GET" && pathname === "/api/health") return send(res,200,{ok:true,version:"3.0.0",openai_configured:!!process.env.OPENAI_API_KEY,login_configured:!!LOGIN_PASS,username_configured:!!LOGIN_USER});
     return staticFile(req,res);
   } catch(e) {
     send(res,500,{ok:false,error:e.message || String(e)});

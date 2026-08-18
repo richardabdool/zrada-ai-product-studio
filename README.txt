@@ -89,9 +89,8 @@ v2.8.0 RAW/DNG SUPPORT
 - JPEG/PNG/WebP workflow is unchanged.
 
 
-v2.9.0 RAW/DNG PIPELINE FIX
-- Real .DNG files now bypass browser Canvas decoding entirely.
-- Original RAW bytes are sent to the authenticated Render server.
-- Server identifies DNG before normal JPEG/PNG/WebP MIME validation.
-- Server decodes DNG using dcraw, then converts TIFF output to JPEG with sharp.
-- Normal JPEG/PNG/WebP images retain the existing RGB normalization workflow.
+v3.0.0 JPEG PRODUCTION BUILD
+- JPEG/PNG/WebP only; RAW/DNG conversion removed.
+- Cancel Current aborts the active request and continues the queue.
+- Cancel All aborts the active request and marks remaining queued jobs CANCELLED.
+- CANCELLED remains distinct from FAILED, so Retry Failed Only ignores cancelled jobs.

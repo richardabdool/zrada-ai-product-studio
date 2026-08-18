@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ZRADA AI Product Studio v2.9.0</title>
+<title>ZRADA AI Product Studio v3.0.0</title>
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -31,7 +31,7 @@
   <button class="nav" data-view="review">Review & Export</button>
   <button class="nav" data-view="settings">Settings</button>
   <button class="nav logout-nav" type="button" onclick="zradaLogout()">Log Out</button>
-  <div class="version">v2.9.0 • RESILIENT BULK ENGINE</div>
+  <div class="version">v3.0.0 • RESILIENT BULK ENGINE</div>
 </aside>
 
 <main>
@@ -116,7 +116,7 @@
 
 <section id="queue" class="view">
 <div class="panel">
-  <div class="panelHead"><div><h3>Generation Queue</h3><p>The first successful color becomes the reference for the remaining colors of that style. Temporary server interruptions are retried automatically.</p></div><div class="queueActions"><button class="secondary" id="retryFailedBtn">Retry Failed Only</button><button class="primary" id="generateBtn">Generate Images</button></div></div>
+  <div class="panelHead"><div><h3>Generation Queue</h3><p>The first successful color becomes the reference for the remaining colors of that style. Temporary server interruptions are retried automatically.</p></div><div class="queueActions"><button class="secondary" id="retryFailedBtn">Retry Failed Only</button><button class="secondary" id="cancelCurrentBtn">Cancel Current</button><button class="danger" id="cancelAllBtn">Cancel All</button><button class="primary" id="generateBtn">Generate Images</button></div></div>
   <div class="progressMeta"><span id="progressText">0 of 0 generated</span><b id="progressPct">0%</b></div><div class="track"><div id="progressBar"></div></div>
   <div id="queueList" class="empty">No images queued.</div>
 </div>
@@ -148,6 +148,6 @@
 </main>
 </div>
 <div id="toast" class="toast"></div>
-<script src="/app.js?v=290"></script>
+<script src="/app.js?v=300"></script>
 </body>
 </html>

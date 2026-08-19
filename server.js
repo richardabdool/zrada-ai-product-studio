@@ -215,7 +215,7 @@ LAYOUT: a large hero bra dominates the LEFT 55% of the portrait image. On the RI
 BACKGROUND: warm cream/beige luxury surface with soft realistic shadows.
 DECORATION: add restrained natural catalog props only around the OUTER EDGES/corners: small white daisy-like flowers, woven/rattan placemat or basket texture, and a small cotton sprig. Props must never overlap, cover, touch, or distract from the products.
 Remove retail tags, hangers, security tags and packaging. Keep all products fully visible, evenly spaced and commercially clean.
-Add the style number "${style || body.style_seed || ""}" small and discreet at the BOTTOM LEFT when a readable style number is available. No other text, labels, prices or logos.
+Add the style number "${body.style_seed || ""}" small and discreet at the BOTTOM LEFT when a readable style number is available. No other text, labels, prices or logos.
 Overall look: polished fashion wholesale catalog photography similar to a coordinated lingerie color-assortment page, not a plain single-product ecommerce shot.`,
         model: "product only", framing: "hero left + color assortment right", scene: "decorated warm-beige catalog"
       };
@@ -228,7 +228,7 @@ LAYOUT: one large hero panty dominates the LEFT 55% of the portrait image. On th
 BACKGROUND: warm cream/beige luxury surface with soft realistic shadows.
 DECORATION: add restrained natural catalog props only around the OUTER EDGES/corners: small white daisy-like flowers, woven/rattan texture and a small cotton sprig. Props must never overlap, cover, touch, or distract from the underwear.
 Remove retail tags, hangers, security tags and packaging. Keep every item fully visible and evenly spaced.
-Add the style number "${style || body.style_seed || ""}" small and discreet at the BOTTOM LEFT when available. No other text, labels, prices or logos.
+Add the style number "${body.style_seed || ""}" small and discreet at the BOTTOM LEFT when available. No other text, labels, prices or logos.
 Overall look: polished coordinated lingerie wholesale catalog photography, not a plain single-product ecommerce shot.`,
         model: "product only", framing: "hero left + color assortment right", scene: "decorated warm-beige catalog"
       };
@@ -241,7 +241,7 @@ LAYOUT: one large hero underwear product dominates the LEFT 55% of the portrait 
 BACKGROUND: warm cream/beige premium surface with soft realistic shadows.
 DECORATION: use a restrained masculine-neutral version of the ZRADA underwear styling around the OUTER EDGES/corners: woven/rattan texture, a small cotton sprig and subtle neutral greenery. Keep floral decoration minimal. Props must never overlap, cover, touch, or distract from the product.
 Remove retail tags, hangers, security tags and packaging. Keep all products fully visible, evenly spaced and commercially clean.
-Add the style number "${style || body.style_seed || ""}" small and discreet at the BOTTOM LEFT when available. No other text, labels, prices or added logos.
+Add the style number "${body.style_seed || ""}" small and discreet at the BOTTOM LEFT when available. No other text, labels, prices or added logos.
 Overall look: coordinated premium men's underwear wholesale catalog photography matching the women's underwear family.`,
         model: "product only", framing: "hero left + color assortment right", scene: "decorated warm-beige catalog"
       };

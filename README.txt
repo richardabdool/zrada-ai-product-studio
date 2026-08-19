@@ -102,3 +102,8 @@ v3.1.0 UNDERWEAR CATALOG UPDATE
 - Men's underwear: new product-only catalog category for briefs/boxers/trunks.
 - Warm beige background with restrained edge decorations (woven/rattan, cotton, flowers/greenery).
 - Existing JPEG production, login, queue, retry, cancel, review and export workflow retained.
+
+
+v3.1.1 HOTFIX
+- Fixes underwear generation crash: ReferenceError: style is not defined.
+- Keeps v3.1 underwear catalog layouts and all v3.0 production/cancel features.

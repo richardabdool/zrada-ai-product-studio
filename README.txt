@@ -94,3 +94,11 @@ v3.0.0 JPEG PRODUCTION BUILD
 - Cancel Current aborts the active request and continues the queue.
 - Cancel All aborts the active request and marks remaining queued jobs CANCELLED.
 - CANCELLED remains distinct from FAILED, so Retry Failed Only ignores cancelled jobs.
+
+
+v3.1.0 UNDERWEAR CATALOG UPDATE
+- Bras: large hero left + coordinated color assortment right.
+- Women's panties: matching catalog layout.
+- Men's underwear: new product-only catalog category for briefs/boxers/trunks.
+- Warm beige background with restrained edge decorations (woven/rattan, cotton, flowers/greenery).
+- Existing JPEG production, login, queue, retry, cancel, review and export workflow retained.

@@ -64,8 +64,9 @@ MENS_JEANS:"Full-body men's jeans: waistband, wash, pockets, leg cut and both he
 MENS_PANTS_SHORTS:"Men's pants/shorts: exact garment length and cargo/pocket details preserved.",
 HANDBAG_LIFESTYLE:"Adult female lifestyle model carrying the bag naturally; entire bag stays visible.",
 HANDBAG_PRODUCT:"Product-only handbag photography with accurate handles, straps and hardware.",
-BRA_PRODUCT:"Always product only. No model/mannequin/body form.",
-PANTY_PRODUCT:"Always product only. No model/mannequin/body form.",
+BRA_PRODUCT:"Catalog layout: large hero bra left, color assortment right, decorated warm-beige background.",
+PANTY_PRODUCT:"Catalog layout: large hero panty left, color assortment right, decorated warm-beige background.",
+MENS_UNDERWEAR_PRODUCT:"Men's briefs/boxers: large hero left, color assortment right, masculine-neutral decorated warm-beige background.",
 SHOES_SLIPPERS:"Footwear-focused lifestyle framing with both products visible.",
 ACCESSORY_PRODUCT:"Product-focused neutral ecommerce photography.",
 HOUSEHOLD_PRODUCT:"Product-only clean retail photography."

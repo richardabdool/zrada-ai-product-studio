@@ -210,17 +210,40 @@ Show the entire handbag, all handles/straps and its true structure. Use a clean 
     case "BRA_PRODUCT":
       return {
         prompt: `${base}
-Create a premium PRODUCT-ONLY BRA ecommerce image. NO PERSON, NO MODEL, NO MANNEQUIN and NO BODY FORM.
-Show the complete bra symmetrically on a soft warm-white or beige studio background. Preserve cup shape, underwire if present, straps, band, lace/print and hardware exactly. Tasteful retail catalog presentation.`,
-        model: "product only", framing: "product centered", scene: "warm-neutral studio"
+Create a premium ZRADA WHOLESALE CATALOG COMPOSITE for this exact BRA style. PRODUCT ONLY: NO PERSON, NO MODEL, NO MANNEQUIN, NO BODY FORM.
+LAYOUT: a large hero bra dominates the LEFT 55% of the portrait image. On the RIGHT 45%, create a neat vertical/grid assortment showing the SAME EXACT bra design in the available/source colors. The hero and every color variant must preserve the same cup shape, straps, band, lace/print, bow, trim, underwire and hardware. Do not invent a different bra style.
+BACKGROUND: warm cream/beige luxury surface with soft realistic shadows.
+DECORATION: add restrained natural catalog props only around the OUTER EDGES/corners: small white daisy-like flowers, woven/rattan placemat or basket texture, and a small cotton sprig. Props must never overlap, cover, touch, or distract from the products.
+Remove retail tags, hangers, security tags and packaging. Keep all products fully visible, evenly spaced and commercially clean.
+Add the style number "${style || body.style_seed || ""}" small and discreet at the BOTTOM LEFT when a readable style number is available. No other text, labels, prices or logos.
+Overall look: polished fashion wholesale catalog photography similar to a coordinated lingerie color-assortment page, not a plain single-product ecommerce shot.`,
+        model: "product only", framing: "hero left + color assortment right", scene: "decorated warm-beige catalog"
       };
 
     case "PANTY_PRODUCT":
       return {
         prompt: `${base}
-Create a premium PRODUCT-ONLY PANTY ecommerce image. NO PERSON, NO MODEL, NO MANNEQUIN and NO BODY FORM.
-Show the complete item clearly on a soft warm-white or beige studio background. Preserve waistband, leg openings, rise, cut, lace, print and proportions exactly. Tasteful retail catalog presentation.`,
-        model: "product only", framing: "product centered", scene: "warm-neutral studio"
+Create a premium ZRADA WHOLESALE CATALOG COMPOSITE for this exact WOMEN'S PANTY style. PRODUCT ONLY: NO PERSON, NO MODEL, NO MANNEQUIN, NO BODY FORM.
+LAYOUT: one large hero panty dominates the LEFT 55% of the portrait image. On the RIGHT 45%, create a neat vertical/grid assortment showing the SAME EXACT panty design in the available/source colors. Preserve the exact waistband, rise, leg openings, cut, lace, print, seams and proportions in every variant. Do not invent a different underwear style.
+BACKGROUND: warm cream/beige luxury surface with soft realistic shadows.
+DECORATION: add restrained natural catalog props only around the OUTER EDGES/corners: small white daisy-like flowers, woven/rattan texture and a small cotton sprig. Props must never overlap, cover, touch, or distract from the underwear.
+Remove retail tags, hangers, security tags and packaging. Keep every item fully visible and evenly spaced.
+Add the style number "${style || body.style_seed || ""}" small and discreet at the BOTTOM LEFT when available. No other text, labels, prices or logos.
+Overall look: polished coordinated lingerie wholesale catalog photography, not a plain single-product ecommerce shot.`,
+        model: "product only", framing: "hero left + color assortment right", scene: "decorated warm-beige catalog"
+      };
+
+    case "MENS_UNDERWEAR_PRODUCT":
+      return {
+        prompt: `${base}
+Create a premium ZRADA WHOLESALE CATALOG COMPOSITE for this exact MEN'S UNDERWEAR style (brief, boxer brief, trunk or boxer as shown). PRODUCT ONLY: NO PERSON, NO MALE MODEL, NO MANNEQUIN, NO BODY FORM.
+LAYOUT: one large hero underwear product dominates the LEFT 55% of the portrait image. On the RIGHT 45%, create a neat vertical/grid assortment showing the SAME EXACT underwear design in the available/source colors. Preserve exact waistband width and branding only if physically present on the garment, pouch construction, leg length, seams, fly, trim, fabric texture and proportions. Never change a brief into a boxer or alter the cut.
+BACKGROUND: warm cream/beige premium surface with soft realistic shadows.
+DECORATION: use a restrained masculine-neutral version of the ZRADA underwear styling around the OUTER EDGES/corners: woven/rattan texture, a small cotton sprig and subtle neutral greenery. Keep floral decoration minimal. Props must never overlap, cover, touch, or distract from the product.
+Remove retail tags, hangers, security tags and packaging. Keep all products fully visible, evenly spaced and commercially clean.
+Add the style number "${style || body.style_seed || ""}" small and discreet at the BOTTOM LEFT when available. No other text, labels, prices or added logos.
+Overall look: coordinated premium men's underwear wholesale catalog photography matching the women's underwear family.`,
+        model: "product only", framing: "hero left + color assortment right", scene: "decorated warm-beige catalog"
       };
 
     case "SHOES_SLIPPERS":

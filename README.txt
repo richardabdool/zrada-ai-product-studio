@@ -1,3 +1,17 @@
+ZRADA AI Product Studio v3.2.0 — PERSISTENT LOGIN + BULK APPROVAL
+
+WHAT v3.2 ADDS
+- Persistent 7-day login session that survives Render server restarts.
+- Stable fallback session secret derived from the configured ZRADA login when SESSION_SECRET is not set.
+- LOGIN_REQUIRED no longer burns through the batch or marks images failed.
+- Queue pauses safely when sign-in is required; completed images remain intact.
+- After signing back in, click Generate Images to resume queued work.
+- New Approve All Successful button in Review & Export.
+- Approve All only approves completed images with valid results; failed/cancelled/queued jobs are untouched.
+- Existing individual Approve / Regenerate / Reject, Retry Failed, Cancel Current and Cancel All remain unchanged.
+
+All v3.1.2 category prompts and underwear hotfix behavior are preserved.
+
 ZRADA AI Product Studio v2.6 — RESILIENT BULK ENGINE
 
 BUILT ON THE WORKING v2.3 SERVER-KEY/CATEGORY SYSTEM.

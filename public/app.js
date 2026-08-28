@@ -50,7 +50,7 @@ async function zradaLogout(){
 // ===== END LOGIN CLIENT =====
 
 
-const state={files:[],groups:{},jobs:[],styleRefs:new Map(),running:false};
+const state={files:[],groups:{},jobs:[],styleRefs:new Map(),running:false,authPaused:false};
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const categoryHelp={
 WOMENS_DRESS:"Full-body dress photography. Exact dress length is locked; hem and feet remain visible.",
@@ -147,7 +147,8 @@ async function fetchJsonSafe(url,options={}){
   if(!r.ok){
     const err=new Error(data?.error||friendlyHttpError(r.status,text));
     err.status=r.status;
-    err.transient=isTransientStatus(r.status) || !data || /temporary|gateway|timeout|rate.limit/i.test(err.message);
+    err.authRequired = r.status===401 && /LOGIN_REQUIRED/i.test(err.message);
+    err.transient=!err.authRequired && (isTransientStatus(r.status) || !data || /temporary|gateway|timeout|rate.limit/i.test(err.message));
     err.raw=text;
     throw err;
   }
@@ -217,6 +218,7 @@ async function runJobs(jobs){
   if(state.running)return;
   if(!jobs.length)return toast("No jobs to process");
   state.running=true;
+  state.authPaused=false;
   $("#generateBtn").disabled=true;
   $("#retryFailedBtn").disabled=true;
   $("#generateBtn").textContent="Generating...";
@@ -237,6 +239,16 @@ async function runJobs(jobs){
         break;
       }catch(e){
         j.error=e.message||String(e);
+        if(e.authRequired){
+          // Authentication loss is not an image failure. Pause this job and the queue.
+          j.status="queued";
+          j.error=null;
+          j.retryMessage="Queue paused — please sign in again, then click Generate Images to resume.";
+          state.authPaused=true;
+          document.getElementById("loginGate").classList.remove("hidden");
+          renderAll();
+          break;
+        }
         const transient=e.transient!==false;
         if(attempt<maxAttempts && transient){
           const waitMs=attempt===1?5000:10000;
@@ -252,6 +264,7 @@ async function runJobs(jobs){
       }
     }
     renderAll();
+    if(state.authPaused) break;
     // Gentle spacing between expensive image calls protects large batches on free/low-tier hosting.
     if(success && idx<jobs.length-1)await sleep(2500);
   }
@@ -259,7 +272,7 @@ async function runJobs(jobs){
   $("#generateBtn").disabled=false;
   $("#retryFailedBtn").disabled=false;
   $("#generateBtn").textContent="Generate Images";
-  toast("Generation queue finished");
+  toast(state.authPaused ? "Queue paused for sign-in. Completed images are safe." : "Generation queue finished");
 }
 $("#generateBtn").onclick=async()=>{
   const jobs=state.jobs.filter(j=>j.status==="queued"||j.status==="failed");
@@ -309,6 +322,13 @@ function makeZip(files){
   const centralData=concat(centrals),end=concat([u32(0x06054b50),u16(0),u16(0),u16(files.length),u16(files.length),u32(centralData.length),u32(offset),u16(0)]);
   return new Blob([...locals,centralData,end],{type:"application/zip"});
 }
+$("#approveAllBtn").onclick=()=>{
+  const successful=state.jobs.filter(j=>j.status==="complete"&&j.result&&!j.approved);
+  if(!successful.length)return toast("No pending successful images to approve");
+  successful.forEach(j=>j.approved=true);
+  renderAll();
+  toast(`${successful.length} successful image(s) approved`);
+};
 $("#downloadApproved").onclick=()=>{
   const approved=state.jobs.filter(j=>j.approved&&j.result);
   if(!approved.length)return toast("No approved images");

@@ -67,7 +67,8 @@ const scenes = {
   mensTop: ["marina promenade","modern city street","upscale café exterior","beachfront boardwalk"],
   mensBottom: ["marina promenade","modern city street","clean boardwalk","contemporary commercial district"],
   bag: ["luxury hotel entrance","upscale café","boutique shopping district","resort exterior"],
-  shoes: ["resort walkway","clean promenade","beachfront boardwalk"]
+  shoes: ["resort walkway","clean promenade","beachfront boardwalk"],
+  sleepwear: ["warm modern bedroom with a neatly made bed and soft window light","bright contemporary bedroom with neutral bedding and subtle bedside decor","cozy upscale bedroom with warm lamps and clean linens","airy home bedroom with soft curtains, a tidy bed and morning daylight","minimal luxury bedroom with tasteful decor and soft natural light","comfortable home bedroom with a neatly styled bed and restrained decor"]
 };
 
 function femaleProfile(body, seed) {
@@ -253,6 +254,42 @@ Create a footwear-focused lifestyle image with ${female} wearing this exact pair
 Both feet and both complete products must be visible and unobstructed. Preserve sole thickness, straps, buckles, toe shape, heel height, texture and color.
 Background: ${choose(scenes.shoes, seed, 23)}. Use lower full-body or leg-focused framing that still provides lifestyle context. ${lock}`,
         model: female, framing: "footwear focused", scene: choose(scenes.shoes, seed, 23)
+      };
+
+    case "WOMENS_PAJAMAS":
+      return {
+        prompt: `${base}
+Create a premium HOME/BEDROOM LIFESTYLE photograph of ${female} wearing this exact women's pajama/sleepwear set.
+Preserve the complete set exactly: top shape and length, collar/neckline, buttons, sleeves, piping, pockets, waistband, drawstring, pant/short length, print scale and fabric texture. Do not turn a two-piece set into a dress or change shorts into pants.
+Use a relaxed natural home pose: standing beside the bed, casually sitting on the edge of the bed, or a comfortable bedroom lifestyle pose. Keep the full pajama set clearly visible and commercially useful. No suggestive posing.
+Background: ${choose(scenes.sleepwear, seed, 29)}. Soft warm natural light, realistic premium home decor, neatly made bed, subtle bedside accessories. The bedroom supports the product and must not distract from it. ${lock}`,
+        model: female, framing: "sleepwear lifestyle full/three-quarter body", scene: choose(scenes.sleepwear, seed, 29)
+      };
+
+    case "MENS_PAJAMAS":
+      return {
+        prompt: `${base}
+Create a premium HOME/BEDROOM LIFESTYLE photograph of ${male} wearing this exact men's pajama/sleepwear set.
+Preserve the complete set exactly: shirt/T-shirt shape, collar, buttons, sleeves, piping, pockets, waistband, drawstring, pant/short length, print and fabric texture. Do not redesign the sleepwear.
+Use a relaxed masculine home pose: standing beside the bed, casually seated at the edge of the bed, or a comfortable natural bedroom lifestyle pose. Keep the full product clearly visible.
+Background: ${choose(scenes.sleepwear, seed, 31)}. Warm natural/window lighting, modern tidy bedroom, neatly made bed and restrained home decor. ${lock}`,
+        model: male, framing: "sleepwear lifestyle full/three-quarter body", scene: choose(scenes.sleepwear, seed, 31)
+      };
+
+    case "WOMENS_NIGHTGOWN":
+      return {
+        prompt: `${base}
+Create a tasteful premium HOME/BEDROOM LIFESTYLE photograph of ${female} wearing this exact nightgown or sleep dress. Preserve its true neckline, straps/sleeves, lace or trim already present, silhouette and exact garment length. Show the full garment clearly without changing coverage or design.
+Use a natural standing or relaxed seated bedroom pose; no suggestive posing. Background: ${choose(scenes.sleepwear, seed, 33)}. Soft warm window light, tidy bed and subtle home decor. ${lock}`,
+        model: female, framing: "full sleep dress", scene: choose(scenes.sleepwear, seed, 33)
+      };
+
+    case "SLEEPWEAR_ROBE":
+      return {
+        prompt: `${base}
+Create a premium HOME/BEDROOM LIFESTYLE photograph featuring this exact robe/dressing gown. Use ${female} unless the source product clearly indicates menswear, in which case use an appropriate adult male fashion model. Preserve the exact robe length, lapels/neckline, sleeves, belt/tie, pockets, trim, print and fabric texture. Keep the robe naturally closed and commercially styled.
+Background: ${choose(scenes.sleepwear, seed, 35)}. Warm natural light, neatly made bed and tasteful restrained bedroom decor. ${lock}`,
+        model: "adult sleepwear model", framing: "full/three-quarter robe", scene: choose(scenes.sleepwear, seed, 35)
       };
 
     case "ACCESSORY_PRODUCT":

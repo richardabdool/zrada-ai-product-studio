@@ -1,3 +1,13 @@
+ZRADA AI Product Studio v3.3.0 — PAJAMAS / SLEEPWEAR ENGINE
+
+WHAT v3.3 ADDS
+- Dedicated Pajamas / Sleepwear category.
+- Women's Pajamas, Men's Pajamas, Women's Nightgown/Sleep Dress, and Robe/Dressing Gown options.
+- Warm modern home/bedroom lifestyle backgrounds with beds, natural/window lighting and tasteful restrained decor.
+- Style-seeded scene variation while preserving the same model/scene across colors of the same style through the existing reference-lock system.
+- Product accuracy rules preserve complete sets, lengths, collars, sleeves, waistbands, piping, prints and fabric details.
+- Existing v3.2 persistent login, queue recovery, Approve All Successful, underwear catalog engine, handbag and clothing rules remain unchanged.
+
 ZRADA AI Product Studio v3.2.0 — PERSISTENT LOGIN + BULK APPROVAL
 
 WHAT v3.2 ADDS

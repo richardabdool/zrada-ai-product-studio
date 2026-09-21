@@ -1,4 +1,4 @@
-// ===== v3.4.2 WHOLESALE PHOTO PREP + POSTER GENERATOR =====
+// ===== v3.4.3 WHOLESALE PHOTO PREP + POSTER GENERATOR =====
 (() => {
   const q = s => document.querySelector(s);
   const qa = s => [...document.querySelectorAll(s)];
@@ -414,7 +414,7 @@
     ctx.textAlign="center";
     ctx.fillStyle="#fff";
     ctx.font=`800 ${portrait?28:24}px Arial`;
-    ctx.fillText("ZRADA  WHOLESALE",cw/2,36);
+    ctx.fillText("ZRADA",cw/2,36);
     drawCenteredText(ctx,"WHOLESALE",portrait?160:138,cw-40,portrait?118:104,"#fff","Impact, Arial Black");
 
     const product=(q("#wholesaleProduct").value||"PRODUCT").trim().toUpperCase();

@@ -331,12 +331,58 @@
   function drawCenteredText(c,text,y,maxW,size,color="#000",font="Arial Black"){
     const s=fitText(c,text,maxW,size,18,font);c.font=`900 ${s}px ${font}`;c.fillStyle=color;c.textAlign="center";c.textBaseline="alphabetic";c.fillText(text,canvas.width/2,y);return s;
   }
+  const _cropCache=new WeakMap();
+  function detectCrop(im){
+    if(_cropCache.has(im)) return _cropCache.get(im);
+    const iw=im.naturalWidth||im.width, ih=im.naturalHeight||im.height;
+    const maxSide=420;
+    const scale=Math.min(1,maxSide/Math.max(iw,ih));
+    const sw=Math.max(1,Math.round(iw*scale)), sh=Math.max(1,Math.round(ih*scale));
+    const oc=document.createElement("canvas"); oc.width=sw; oc.height=sh;
+    const ox=oc.getContext("2d",{willReadFrequently:true});
+    ox.drawImage(im,0,0,sw,sh);
+    const data=ox.getImageData(0,0,sw,sh).data;
+    const samplePts=[[2,2],[sw-3,2],[2,sh-3],[sw-3,sh-3],[Math.floor(sw/2),2],[Math.floor(sw/2),sh-3],[2,Math.floor(sh/2)],[sw-3,Math.floor(sh/2)]];
+    let br=0,bg=0,bb=0,bn=0;
+    for(const [px,py] of samplePts){
+      if(px<0||py<0||px>=sw||py>=sh) continue;
+      const idx=(py*sw+px)*4, a=data[idx+3];
+      if(a<10) continue;
+      br+=data[idx]; bg+=data[idx+1]; bb+=data[idx+2]; bn++;
+    }
+    const bgCol=bn? [br/bn,bg/bn,bb/bn] : [245,245,245];
+    let minX=sw,minY=sh,maxX=-1,maxY=-1;
+    for(let y=0;y<sh;y++) for(let x=0;x<sw;x++){
+      const idx=(y*sw+x)*4, a=data[idx+3];
+      if(a<18) continue;
+      const r=data[idx], g=data[idx+1], b=data[idx+2];
+      const dist=Math.hypot(r-bgCol[0],g-bgCol[1],b-bgCol[2]);
+      const bright=r+g+b;
+      const isBg=dist<32 || bright>742;
+      if(!isBg){
+        if(x<minX) minX=x; if(y<minY) minY=y; if(x>maxX) maxX=x; if(y>maxY) maxY=y;
+      }
+    }
+    let crop;
+    if(maxX<=minX || maxY<=minY){
+      crop={sx:0,sy:0,sw:iw,sh:ih};
+    }else{
+      const padX=Math.max(2,Math.round((maxX-minX)*0.05));
+      const padY=Math.max(2,Math.round((maxY-minY)*0.05));
+      minX=Math.max(0,minX-padX); minY=Math.max(0,minY-padY);
+      maxX=Math.min(sw-1,maxX+padX); maxY=Math.min(sh-1,maxY+padY);
+      crop={sx:minX/scale,sy:minY/scale,sw:(maxX-minX+1)/scale,sh:(maxY-minY+1)/scale};
+    }
+    _cropCache.set(im,crop);
+    return crop;
+  }
   function drawContain(c,im,x,y,w,h,pad=2){
     c.fillStyle="#fff";c.fillRect(x,y,w,h);
-    const iw=im.naturalWidth||im.width,ih=im.naturalHeight||im.height;
+    const crop=detectCrop(im);
+    const iw=crop.sw, ih=crop.sh;
     const sc=Math.min((w-pad*2)/iw,(h-pad*2)/ih);
-    const dw=iw*sc,dh=ih*sc;
-    c.drawImage(im,x+(w-dw)/2,y+(h-dh)/2,dw,dh);
+    const dw=iw*sc, dh=ih*sc;
+    c.drawImage(im,crop.sx,crop.sy,crop.sw,crop.sh,x+(w-dw)/2,y+(h-dh)/2,dw,dh);
   }
   async function currentImages(){
     const source=q("#wholesalePhotoSource").value;
@@ -345,7 +391,7 @@
   }
 
   function photoRects(n,x,y,w,h,template){
-    const gap=8;
+    const gap=4;
     if(n<=0)return [];
     if(n===1)return [[x,y,w,h]];
 
@@ -405,17 +451,17 @@
     canvas.width=cw;canvas.height=ch;
     ctx.fillStyle="#fff";ctx.fillRect(0,0,cw,ch);
     const portrait=ch>cw;
-    const headerH=portrait?190:165;
+    const headerH=portrait?174:150;
     const footerH=portrait?88:82;
-    const infoH=portrait?210:195;
+    const infoH=portrait?198:182;
 
     ctx.fillStyle="#060606";
     ctx.fillRect(0,0,cw,headerH);
     ctx.textAlign="center";
     ctx.fillStyle="#fff";
-    ctx.font=`800 ${portrait?28:24}px Arial`;
-    ctx.fillText("ZRADA",cw/2,36);
-    drawCenteredText(ctx,"WHOLESALE",portrait?160:138,cw-40,portrait?118:104,"#fff","Impact, Arial Black");
+    ctx.font=`800 ${portrait?26:22}px Arial`;
+    ctx.fillText("ZRADA",cw/2,34);
+    drawCenteredText(ctx,"WHOLESALE",portrait?147:126,cw-28,portrait?112:98,"#fff","Impact, Arial Black");
 
     const product=(q("#wholesaleProduct").value||"PRODUCT").trim().toUpperCase();
     const style=(q("#wholesaleStyle").value||"").trim().toUpperCase();
@@ -425,9 +471,9 @@
     const ptype=q("#wholesalePriceType").value;
     const srp=q("#wholesaleSrp").value;
 
-    const titleArea=portrait?102:88;
-    const imageY=headerH+10;
-    const imageH=ch-headerH-footerH-infoH-titleArea-12;
+    const titleArea=portrait?86:64;
+    const imageY=headerH+6;
+    const imageH=ch-headerH-footerH-infoH-titleArea-8;
     const images=await currentImages();
     if(images.length){
       const rects=photoRects(images.length,16,imageY,cw-32,imageH,ws.template);
@@ -441,14 +487,14 @@
       ctx.fillText("UPLOAD PRODUCT PHOTOS",cw/2,imageY+imageH/2);
     }
 
-    const titleY=imageY+imageH+(portrait?46:40);
+    const titleY=imageY+imageH+(portrait?34:28);
     const titleSize=drawCenteredText(ctx,product,titleY,cw-60,portrait?68:58,"#050505","Impact, Arial Black");
     let styleY=titleY+36;
     if(extra){
-      drawCenteredText(ctx,extra,titleY+(portrait?34:30),cw-90,portrait?26:23,"#111","Arial Black");
-      styleY=titleY+(portrait?62:56);
+      drawCenteredText(ctx,extra,titleY+(portrait?28:24),cw-90,portrait?24:21,"#111","Arial Black");
+      styleY=titleY+(portrait?52:46);
     } else {
-      styleY=titleY+(portrait?32:30);
+      styleY=titleY+(portrait?28:26);
     }
     if(style){
       ctx.font=`900 ${portrait?23:20}px Arial`;

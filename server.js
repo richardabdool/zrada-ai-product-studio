@@ -417,6 +417,60 @@ async function handleGenerate(req, res) {
   });
 }
 
+
+async function handleWholesaleClean(req, res) {
+  const body = await parseJson(req);
+  const key = String(process.env.OPENAI_API_KEY || "").trim();
+  if (!key) return send(res, 500, {ok:false, error:"OpenAI API key is not configured on the server. Add OPENAI_API_KEY in Render Environment settings."});
+
+  const sourceRaw = dataUrlToBuffer(body.image_base64, body.filename || "source.jpg");
+  const source = {...sourceRaw, filename: body.filename || "source.jpg"};
+  const productName = String(body.product_name || "product").trim().toUpperCase();
+  const whiteBackground = body.white_background !== false;
+  const template = String(body.template || "clothing");
+
+  const prompt = `Edit Image A into a clean wholesale product photo prepared for a locked poster template.
+Keep only the real product as the subject and preserve its exact design, color, print, hardware, texture, seams, proportions and silhouette.
+Remove the mannequin, body form, backdrop, clips, hangers, tags, security devices, stands, table edges and all distractions.
+Center the product and scale it large so it fills most of the square image while remaining completely visible with comfortable margins.
+Use a ${whiteBackground ? "pure white" : "clean light neutral"} background with soft realistic shadow.
+Do not crop the product. Do not add text, labels, watermark or extra objects.
+This cleaned image will be used for a ${template} wholesale poster for ${productName}.`;
+
+  const form = new FormData();
+  form.append("model", "gpt-image-2");
+  form.append("prompt", prompt);
+  form.append("size", "1024x1024");
+  form.append("quality", "high");
+  form.append("output_format", "png");
+  form.append("image[]", new Blob([source.buffer], {type: source.mime}), source.filename || "source.jpg");
+
+  const controller = new AbortController();
+  const timer = setTimeout(()=>controller.abort(), 8*60*1000);
+  let r;
+  try {
+    r = await fetch("https://api.openai.com/v1/images/edits", {
+      method:"POST",
+      headers:{Authorization:`Bearer ${key}`},
+      body:form,
+      signal:controller.signal
+    });
+  } catch (e) {
+    if (e?.name === "AbortError") return send(res, 504, {ok:false,error:"OpenAI cleanup timed out. Retry the image."});
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+
+  const text = await r.text();
+  if (!r.ok) return send(res, r.status, {ok:false, error:safeError(r.status, text), raw:text});
+
+  let out;
+  try { out = JSON.parse(text); } catch { return send(res, 500, {ok:false,error:"OpenAI returned an unreadable cleanup response."}); }
+  const b64 = out?.data?.[0]?.b64_json;
+  if (!b64) return send(res, 500, {ok:false,error:"OpenAI returned no image data."});
+  return send(res, 200, {ok:true, image_base64:`data:image/png;base64,${b64}`});
+}
 async function handleTest(req, res) {
   const key = String(process.env.OPENAI_API_KEY || "").trim();
   if (!key) return send(res, 500, {ok:false,error:"OPENAI_API_KEY is not configured in Render."});
@@ -514,8 +568,9 @@ http.createServer(async (req,res)=>{
     if (req.method === "GET" && pathname === "/api/auth-status") return send(res,200,{authenticated:isAuthed(req)});
     if (pathname.startsWith("/api/") && !isAuthed(req)) return send(res,401,{error:"LOGIN_REQUIRED"});
     if (req.method === "POST" && pathname === "/api/generate") return await handleGenerate(req,res);
+    if (req.method === "POST" && pathname === "/api/wholesale-clean") return await handleWholesaleClean(req,res);
     if (req.method === "POST" && pathname === "/api/test") return await handleTest(req,res);
-    if (req.method === "GET" && pathname === "/api/health") return send(res,200,{ok:true,version:"3.4.0",openai_configured:!!process.env.OPENAI_API_KEY,login_configured:!!LOGIN_PASS,username_configured:!!LOGIN_USER});
+    if (req.method === "GET" && pathname === "/api/health") return send(res,200,{ok:true,version:"3.4.1",openai_configured:!!process.env.OPENAI_API_KEY,login_configured:!!LOGIN_PASS,username_configured:!!LOGIN_USER});
     return staticFile(req,res);
   } catch(e) {
     send(res,500,{ok:false,error:e.message || String(e)});

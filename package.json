@@ -1,6 +1,6 @@
 {
   "name": "zrada-ai-product-studio",
-  "version": "3.4.0",
+  "version": "3.4.1",
   "private": true,
   "description": "ZRADA AI Product Studio - category generation plus local wholesale photo cleanup and poster generator",
   "scripts": {

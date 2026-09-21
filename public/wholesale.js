@@ -1,8 +1,8 @@
-// ===== v3.4.1 WHOLESALE PHOTO PREP + POSTER GENERATOR =====
+// ===== v3.4.2 WHOLESALE PHOTO PREP + POSTER GENERATOR =====
 (() => {
   const q = s => document.querySelector(s);
   const qa = s => [...document.querySelectorAll(s)];
-  const ws = {items:[], template:"clothing", cleanedReady:false, aiReady:false};
+  const ws = {items:[], template:"clothing", cleanedReady:false, aiReady:false, aiBatchAbort:null};
 
   const canvas = q("#wholesaleCanvas");
   if(!canvas) return;
@@ -95,32 +95,113 @@
     return out.toDataURL("image/png");
   }
 
-  async function aiCleanOne(item){
-    const resp = await fetch("/api/wholesale-clean", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({
-        image_base64:item.original,
-        filename:item.name,
-        white_background:!!q("#wholesaleWhiteBg")?.checked,
-        product_name:(q("#wholesaleProduct")?.value||"PRODUCT").trim(),
-        template:ws.template
-      })
-    });
-    const data = await resp.json().catch(()=>({ok:false,error:"Unreadable server response"}));
-    if(!resp.ok || !data?.ok) throw new Error(data?.error || `Server error ${resp.status}`);
-    return data.image_base64;
+  function setAiStatus(text, kind="info"){
+    const el=q("#wholesaleAiStatus");
+    if(!el) return;
+    if(!text){el.classList.add("hidden");el.textContent="";return;}
+    el.classList.remove("hidden");
+    el.classList.toggle("aiError",kind==="error");
+    el.classList.toggle("aiSuccess",kind==="success");
+    el.textContent=text;
+  }
+
+  async function aiCleanOne(item, signal){
+    const controller = new AbortController();
+    let timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();}, 210000);
+    const onAbort=()=>controller.abort();
+    if(signal) signal.addEventListener("abort",onAbort,{once:true});
+    try{
+      const resp = await fetch("/api/wholesale-clean", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        signal:controller.signal,
+        body:JSON.stringify({
+          image_base64:item.original,
+          filename:item.name,
+          white_background:!!q("#wholesaleWhiteBg")?.checked,
+          product_name:(q("#wholesaleProduct")?.value||"PRODUCT").trim(),
+          template:ws.template,
+          quality:"medium"
+        })
+      });
+      const data = await resp.json().catch(()=>({ok:false,error:"Unreadable server response"}));
+      if(!resp.ok || !data?.ok) throw new Error(data?.error || `Server error ${resp.status}`);
+      return data.image_base64;
+    }catch(err){
+      if(err?.name==="AbortError"){
+        if(signal?.aborted) throw new Error("OpenAI cleanup stopped");
+        if(timedOut) throw new Error("OpenAI cleanup took too long. Retry this photo.");
+      }
+      throw err;
+    }finally{
+      clearTimeout(timeout);
+      if(signal) signal.removeEventListener("abort",onAbort);
+    }
+  }
+
+  async function aiCleanIndex(index, signal){
+    const item=ws.items[index];
+    if(!item) return;
+    item.aiStatus="running";
+    item.aiError="";
+    renderThumbs();
+    try{
+      item.cleaned=await aiCleanOne(item,signal);
+      item.cleanedSource="OPENAI CLEANED";
+      item.aiStatus="done";
+      ws.aiReady=true;
+      ws.cleanedReady=true;
+      q("#wholesalePhotoSource").value="cleaned";
+      renderThumbs();
+      await renderPoster();
+    }catch(err){
+      item.aiStatus=signal?.aborted?"stopped":"error";
+      item.aiError=err.message||String(err);
+      renderThumbs();
+      throw err;
+    }
   }
 
   function renderThumbs(){
     const box=q("#wholesalePhotoGrid");
     if(!ws.items.length){box.innerHTML='<div class="empty">Upload product photos to begin.</div>';return;}
     const source=q("#wholesalePhotoSource")?.value||"cleaned";
-    box.innerHTML=ws.items.map((it)=>{
+    box.innerHTML=ws.items.map((it,i)=>{
       const using = source==="cleaned" && it.cleaned ? it.cleaned : it.original;
       const label = source==="cleaned" ? (it.cleanedSource || (it.cleaned?"CLEANED":"ORIGINAL")) : "ORIGINAL";
-      return `<div class="wPhoto"><img src="${using}"><div class="wPhotoMeta"><b>${it.name}</b><span>${label}</span></div></div>`;
+      let status="";
+      if(it.aiStatus==="running") status='<span class="aiPhotoStatus running">OpenAI working…</span>';
+      else if(it.aiStatus==="error") status=`<span class="aiPhotoStatus error" title="${String(it.aiError||'').replace(/"/g,'&quot;')}">AI failed — retry</span>`;
+      else if(it.aiStatus==="done") status='<span class="aiPhotoStatus done">AI ready</span>';
+      else if(it.aiStatus==="stopped") status='<span class="aiPhotoStatus">Stopped</span>';
+      return `<div class="wPhoto">
+        <img src="${using}">
+        <div class="wPhotoMeta"><b>${it.name}</b><span>${label}</span></div>
+        <div class="wPhotoActions">
+          <button class="mini aiCleanPhoto" data-index="${i}" ${it.aiStatus==="running"?'disabled':''}>${it.aiStatus==="running"?'Working…':(it.aiStatus==="error"?'Retry AI':'AI Clean')}</button>
+          ${it.cleaned?`<button class="mini useOriginalPhoto" data-index="${i}">Original</button>`:''}
+        </div>${status}
+      </div>`;
     }).join("");
+    qa(".aiCleanPhoto").forEach(btn=>btn.onclick=async()=>{
+      const i=Number(btn.dataset.index);
+      const controller=new AbortController();
+      setAiStatus(`OpenAI cleaning photo ${i+1} of ${ws.items.length}…`);
+      try{
+        await aiCleanIndex(i,controller.signal);
+        setAiStatus(`Photo ${i+1} cleaned with OpenAI.`,"success");
+        notify("OpenAI photo cleanup complete");
+      }catch(err){
+        setAiStatus(err.message||String(err),"error");
+        notify("OpenAI cleanup failed: "+(err.message||err));
+      }
+    });
+    qa(".useOriginalPhoto").forEach(btn=>btn.onclick=async()=>{
+      const i=Number(btn.dataset.index),it=ws.items[i];
+      it.cleaned=null;it.cleanedSource="";it.aiStatus="";it.aiError="";
+      renderThumbs();await renderPoster();
+    });
   }
 
   q("#wholesaleFiles").addEventListener("change",async e=>{
@@ -129,11 +210,12 @@
       .slice(0,6);
     ws.items=[];
     for(const f of files){
-      ws.items.push({file:f,name:f.name,original:await imageDataURLFromFile(f),cleaned:null,cleanedSource:""});
+      ws.items.push({file:f,name:f.name,original:await imageDataURLFromFile(f),cleaned:null,cleanedSource:"",aiStatus:"",aiError:""});
     }
     ws.cleanedReady=false;
     ws.aiReady=false;
     q("#wholesalePhotoSource").value="original";
+    setAiStatus("");
     renderThumbs();
     await renderPoster();
     notify(`${files.length} product photo(s) loaded`);
@@ -151,12 +233,12 @@
         btn.textContent=`Cleaning ${i+1}/${ws.items.length}...`;
         ws.items[i].cleaned=await localClean(ws.items[i].file,q("#wholesaleStrength").value,q("#wholesaleWhiteBg").checked);
         ws.items[i].cleanedSource="LOCAL CLEANED";
+        ws.items[i].aiStatus="";
+        q("#wholesalePhotoSource").value="cleaned";
         renderThumbs();
+        await renderPoster();
       }
       ws.cleanedReady=true;
-      q("#wholesalePhotoSource").value="cleaned";
-      renderThumbs();
-      await renderPoster();
       notify("Photos cleaned locally");
     }catch(err){
       notify("Cleanup failed: "+(err.message||err));
@@ -168,26 +250,46 @@
 
   q("#wholesaleCleanAi").onclick=async()=>{
     if(!ws.items.length)return notify("Upload product photos first");
-    const btn=q("#wholesaleCleanAi"), old=btn.textContent;
+    if(ws.aiBatchAbort) return;
+    const btn=q("#wholesaleCleanAi"),stop=q("#wholesaleStopAi"),old=btn.textContent;
+    const controller=new AbortController();
+    ws.aiBatchAbort=controller;
     btn.disabled=true;
+    stop?.classList.remove("hidden");
+    q("#wholesalePhotoSource").value="cleaned";
+    renderThumbs();
     try{
       for(let i=0;i<ws.items.length;i++){
+        if(controller.signal.aborted) throw new Error("OpenAI cleanup stopped");
         btn.textContent=`OpenAI ${i+1}/${ws.items.length}...`;
-        ws.items[i].cleaned=await aiCleanOne(ws.items[i]);
-        ws.items[i].cleanedSource="OPENAI CLEANED";
-        renderThumbs();
+        setAiStatus(`Cleaning photo ${i+1} of ${ws.items.length}. Finished photos appear immediately below.`);
+        try{
+          await aiCleanIndex(i,controller.signal);
+        }catch(err){
+          if(controller.signal.aborted) throw err;
+          setAiStatus(`Photo ${i+1} failed: ${err.message}. Continuing with the remaining photos.`,"error");
+          await new Promise(r=>setTimeout(r,500));
+        }
       }
-      ws.aiReady=true;
-      ws.cleanedReady=true;
-      q("#wholesalePhotoSource").value="cleaned";
-      renderThumbs();
-      await renderPoster();
-      notify("OpenAI cleanup complete");
+      if(!controller.signal.aborted){
+        setAiStatus("OpenAI batch cleanup finished. Any failed photo can be retried individually.","success");
+        notify("OpenAI cleanup finished");
+      }
     }catch(err){
-      notify("OpenAI cleanup failed: "+(err.message||err));
+      setAiStatus(err.message||String(err),controller.signal.aborted?"info":"error");
+      notify(err.message||String(err));
     }finally{
+      ws.aiBatchAbort=null;
       btn.textContent=old;
       btn.disabled=false;
+      stop?.classList.add("hidden");
+    }
+  };
+
+  if(q("#wholesaleStopAi")) q("#wholesaleStopAi").onclick=()=>{
+    if(ws.aiBatchAbort){
+      ws.aiBatchAbort.abort();
+      setAiStatus("Stopping OpenAI cleanup after the current request…");
     }
   };
 

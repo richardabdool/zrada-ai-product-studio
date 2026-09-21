@@ -441,12 +441,12 @@ This cleaned image will be used for a ${template} wholesale poster for ${product
   form.append("model", "gpt-image-2");
   form.append("prompt", prompt);
   form.append("size", "1024x1024");
-  form.append("quality", "high");
+  form.append("quality", body.quality === "high" ? "high" : "medium");
   form.append("output_format", "png");
   form.append("image[]", new Blob([source.buffer], {type: source.mime}), source.filename || "source.jpg");
 
   const controller = new AbortController();
-  const timer = setTimeout(()=>controller.abort(), 8*60*1000);
+  const timer = setTimeout(()=>controller.abort(), 4*60*1000);
   let r;
   try {
     r = await fetch("https://api.openai.com/v1/images/edits", {
@@ -570,7 +570,7 @@ http.createServer(async (req,res)=>{
     if (req.method === "POST" && pathname === "/api/generate") return await handleGenerate(req,res);
     if (req.method === "POST" && pathname === "/api/wholesale-clean") return await handleWholesaleClean(req,res);
     if (req.method === "POST" && pathname === "/api/test") return await handleTest(req,res);
-    if (req.method === "GET" && pathname === "/api/health") return send(res,200,{ok:true,version:"3.4.1",openai_configured:!!process.env.OPENAI_API_KEY,login_configured:!!LOGIN_PASS,username_configured:!!LOGIN_USER});
+    if (req.method === "GET" && pathname === "/api/health") return send(res,200,{ok:true,version:"3.4.2",openai_configured:!!process.env.OPENAI_API_KEY,login_configured:!!LOGIN_PASS,username_configured:!!LOGIN_USER});
     return staticFile(req,res);
   } catch(e) {
     send(res,500,{ok:false,error:e.message || String(e)});

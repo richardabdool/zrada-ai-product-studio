@@ -1,4 +1,4 @@
-// ===== v3.4.3 WHOLESALE PHOTO PREP + POSTER GENERATOR =====
+// ===== v3.4.4 WHOLESALE PHOTO PREP + POSTER GENERATOR =====
 (() => {
   const q = s => document.querySelector(s);
   const qa = s => [...document.querySelectorAll(s)];
@@ -345,7 +345,7 @@
   }
 
   function photoRects(n,x,y,w,h,template){
-    const gap=12;
+    const gap=8;
     if(n<=0)return [];
     if(n===1)return [[x,y,w,h]];
 
@@ -407,7 +407,7 @@
     const portrait=ch>cw;
     const headerH=portrait?190:165;
     const footerH=portrait?88:82;
-    const infoH=portrait?225:210;
+    const infoH=portrait?210:195;
 
     ctx.fillStyle="#060606";
     ctx.fillRect(0,0,cw,headerH);
@@ -425,30 +425,30 @@
     const ptype=q("#wholesalePriceType").value;
     const srp=q("#wholesaleSrp").value;
 
-    const titleArea=portrait?120:108;
-    const imageY=headerH+12;
-    const imageH=ch-headerH-footerH-infoH-titleArea-18;
+    const titleArea=portrait?102:88;
+    const imageY=headerH+10;
+    const imageH=ch-headerH-footerH-infoH-titleArea-12;
     const images=await currentImages();
     if(images.length){
-      const rects=photoRects(images.length,24,imageY,cw-48,imageH,ws.template);
-      rects.forEach((r,i)=>drawContain(ctx,images[i],...r,2));
+      const rects=photoRects(images.length,16,imageY,cw-32,imageH,ws.template);
+      rects.forEach((r,i)=>drawContain(ctx,images[i],...r,0));
     }else{
       ctx.fillStyle="#f5f3f0";
-      ctx.fillRect(24,imageY,cw-48,imageH);
+      ctx.fillRect(16,imageY,cw-32,imageH);
       ctx.fillStyle="#888";
       ctx.textAlign="center";
       ctx.font="700 28px Arial";
       ctx.fillText("UPLOAD PRODUCT PHOTOS",cw/2,imageY+imageH/2);
     }
 
-    const titleY=imageY+imageH+(portrait?58:50);
+    const titleY=imageY+imageH+(portrait?46:40);
     const titleSize=drawCenteredText(ctx,product,titleY,cw-60,portrait?68:58,"#050505","Impact, Arial Black");
     let styleY=titleY+36;
     if(extra){
-      drawCenteredText(ctx,extra,titleY+(portrait?40:34),cw-90,portrait?26:23,"#111","Arial Black");
-      styleY=titleY+(portrait?72:62);
+      drawCenteredText(ctx,extra,titleY+(portrait?34:30),cw-90,portrait?26:23,"#111","Arial Black");
+      styleY=titleY+(portrait?62:56);
     } else {
-      styleY=titleY+(portrait?38:34);
+      styleY=titleY+(portrait?32:30);
     }
     if(style){
       ctx.font=`900 ${portrait?23:20}px Arial`;

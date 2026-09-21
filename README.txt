@@ -1,4 +1,4 @@
-ZRADA AI Product Studio v3.4.3 — WHOLESALE PHOTO PREP + POSTER GENERATOR
+ZRADA AI Product Studio v3.4.4 — WHOLESALE PHOTO PREP + POSTER GENERATOR
 
 WHAT v3.4 ADDS
 - New Wholesale Poster section inside the existing app.

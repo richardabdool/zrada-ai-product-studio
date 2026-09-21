@@ -1,8 +1,8 @@
 {
   "name": "zrada-ai-product-studio",
-  "version": "3.1.2",
+  "version": "3.4.0",
   "private": true,
-  "description": "ZRADA AI Product Studio - category-specific fashion image generation",
+  "description": "ZRADA AI Product Studio - category generation plus local wholesale photo cleanup and poster generator",
   "scripts": {
     "start": "node server.js"
   },

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ZRADA AI Product Studio v3.2.0</title>
+<title>ZRADA AI Product Studio v3.4.0</title>
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -29,9 +29,10 @@
   <button class="nav" data-view="batch">New Batch</button>
   <button class="nav" data-view="queue">Generation Queue</button>
   <button class="nav" data-view="review">Review & Export</button>
+  <button class="nav wholesale-nav" data-view="wholesale">Wholesale Poster</button>
   <button class="nav" data-view="settings">Settings</button>
   <button class="nav logout-nav" type="button" onclick="zradaLogout()">Log Out</button>
-  <div class="version">v3.1.2 • RESILIENT BULK ENGINE</div>
+  <div class="version">v3.4.0 • WHOLESALE POSTER</div>
 </aside>
 
 <main>
@@ -136,6 +137,64 @@
 </div>
 </section>
 
+<section id="wholesale" class="view">
+  <div class="wholesaleWorkspace">
+    <div class="wholesaleControls">
+      <div class="panel">
+        <div class="panelHead"><div><h3>1. Upload & Clean Product Photos</h3><p>Use your normal camera photos. Local cleanup is free and does not use OpenAI credits.</p></div><span class="freeBadge">LOCAL • FREE</span></div>
+        <label class="drop wholesaleDrop"><input id="wholesaleFiles" type="file" multiple accept="image/jpeg,image/png,image/webp"><strong>Select 1–6 Product Photos</strong><span>JPEG, PNG or WebP • straight-on photos work best</span></label>
+        <div class="wholesaleCleanRow">
+          <label class="inlineCheck"><input id="wholesaleWhiteBg" type="checkbox" checked> Clean white background</label>
+          <label class="compactLabel">Cleanup strength <input id="wholesaleStrength" type="range" min="25" max="95" value="55"><span id="wholesaleStrengthValue">55</span></label>
+        </div>
+        <div class="actions wholesaleActions">
+          <button class="secondary" id="wholesaleUseOriginals">Use Originals</button>
+          <button class="secondary" id="wholesaleCleanAll">Clean Photos</button>
+          <button class="secondary" id="wholesaleDownloadCleaned">Download Cleaned ZIP</button>
+        </div>
+        <div id="wholesalePhotoGrid" class="wholesalePhotoGrid"><div class="empty">Upload product photos to begin.</div></div>
+      </div>
+
+      <div class="panel">
+        <h3>2. Product Information</h3>
+        <div class="grid2 tight">
+          <label>Product Name<input id="wholesaleProduct" value="HANDBAGS" placeholder="e.g. HANDBAGS"></label>
+          <label>Style No.<input id="wholesaleStyle" value="RD-25-043" placeholder="e.g. RD-25-043"></label>
+          <label>Minimum Quantity<select id="wholesaleMinimum"><option value="3 PCS">3 PCS</option><option value="6 PCS">6 PCS</option><option value="12 PCS">12 PCS</option><option value="1 PC">1 PC</option></select></label>
+          <label>Wholesale Price<input id="wholesalePrice" value="90" inputmode="decimal"></label>
+          <label>Price Type<select id="wholesalePriceType"><option value="EACH">EACH</option><option value="PER 6 PCS">PER 6 PCS</option><option value="PER DOZEN">PER DOZEN</option><option value="TOTAL">TOTAL</option></select></label>
+          <label>SRP<input id="wholesaleSrp" value="140" inputmode="decimal"></label>
+        </div>
+        <label>Additional Info (optional)<input id="wholesaleInfo" placeholder="e.g. ASSORTED COLOURS • FREE SIZE • MIXED SIZES"></label>
+      </div>
+
+      <div class="panel">
+        <h3>3. Template & Export</h3>
+        <div class="templateCards">
+          <button class="templateCard active" data-template="clothing"><b>Clothing / Underwear</b><span>1–6 photos</span></button>
+          <button class="templateCard" data-template="handbags"><b>Handbags</b><span>Hero + colors</span></button>
+          <button class="templateCard" data-template="home"><b>Home / Large Items</b><span>Hero + supporting photos</span></button>
+        </div>
+        <div class="grid2 tight">
+          <label>Output Size<select id="wholesaleSize"><option value="1080x1080">1080 × 1080 Square</option><option value="1080x1350">1080 × 1350 Portrait</option></select></label>
+          <label>Photo Source<select id="wholesalePhotoSource"><option value="cleaned">Cleaned Photos</option><option value="original">Original Photos</option></select></label>
+        </div>
+        <div class="actions wholesaleActions">
+          <button class="primary" id="wholesalePreviewBtn">Generate Preview</button>
+          <button class="primary" id="wholesaleExportBtn">Export JPEG</button>
+          <button class="secondary" id="wholesaleResetBtn">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel wholesalePreviewPanel">
+      <div class="panelHead"><div><h3>Live Wholesale Poster</h3><p>Locked ZRADA black / white / red layout.</p></div><span class="lockedBadge">TEMPLATE LOCKED</span></div>
+      <div class="posterStage"><canvas id="wholesaleCanvas" width="1080" height="1080"></canvas></div>
+      <div class="note">Workflow: <b>Upload → Clean Photos → Enter Details → Preview → Export JPEG.</b> Local cleanup is the default because it is faster and costs nothing.</div>
+    </div>
+  </div>
+</section>
+
 <section id="settings" class="view">
 <div class="grid2">
   <div class="panel">
@@ -155,6 +214,7 @@
 </main>
 </div>
 <div id="toast" class="toast"></div>
-<script src="/app.js?v=312"></script>
+<script src="/app.js?v=340"></script>
+<script src="/wholesale.js?v=340"></script>
 </body>
 </html>

@@ -1,3 +1,34 @@
+ZRADA AI Product Studio v3.4.0 — WHOLESALE PHOTO PREP + POSTER GENERATOR
+
+WHAT v3.4 ADDS
+- New Wholesale Poster section inside the existing app.
+- Upload 1–6 real product photos and prepare them locally in the browser.
+- Free local cleanup: brightens product photos, detects edge-connected light/neutral backgrounds, turns them white, auto-crops, centers and standardizes the product image.
+- No OpenAI credits are used for the default wholesale cleanup or poster generation.
+- One-click Clean Photos and Download Cleaned ZIP.
+- Locked ZRADA wholesale poster system with black/white/red branding.
+- Variable fields: product name, style number, minimum quantity, wholesale price, price type, SRP and optional info.
+- Three layouts: Clothing/Underwear, Handbags, Home/Large Items.
+- Square 1080x1080 and portrait 1080x1350 outputs.
+- One-click JPEG export.
+- Existing v3.3 pajamas/sleepwear engine, login, resilient queue, approvals, underwear catalog engine and all category prompts remain unchanged.
+
+RECOMMENDED WHOLESALE WORKFLOW
+1. Photograph each color/design straight-on using the same light background and camera position.
+2. Open Wholesale Poster.
+3. Upload 1–6 photos.
+4. Click Clean Photos.
+5. Check the cleaned thumbnails. If a light-colored product is affected, lower Cleanup Strength or choose Use Originals.
+6. Enter product name, style number, minimum, wholesale price and SRP.
+7. Choose template and output size.
+8. Generate Preview.
+9. Export JPEG.
+
+IMPORTANT
+- Local cleanup works best when the product/mannequin does not touch the edges of the photo and the backdrop is white, cream or light gray.
+- It deliberately avoids generative AI so product patterns, buckles, labels, trims and colors stay faithful to the real merchandise.
+- For difficult backgrounds, use the original AI generation workflow separately; v3.4 does not force AI cleanup on wholesale photos.
+
 ZRADA AI Product Studio v3.3.0 — PAJAMAS / SLEEPWEAR ENGINE
 
 WHAT v3.3 ADDS

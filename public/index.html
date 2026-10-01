@@ -32,7 +32,7 @@
   <button class="nav wholesale-nav" data-view="wholesale">Wholesale Poster</button>
   <button class="nav" data-view="settings">Settings</button>
   <button class="nav logout-nav" type="button" onclick="zradaLogout()">Log Out</button>
-  <div class="version">v3.4.4 • WHOLESALE POSTER</div>
+  <div class="version">v3.4.6 • GENTLE LOCAL CLEAN</div>
 </aside>
 
 <main>
@@ -144,8 +144,8 @@
         <div class="panelHead"><div><h3>1. Upload & Clean Product Photos</h3><p>Use local cleanup for the fastest free workflow. Use OpenAI only on difficult photos that need smarter cleanup, mannequin removal or centering.</p></div><span class="freeBadge">LOCAL + OPENAI</span></div>
         <label class="drop wholesaleDrop"><input id="wholesaleFiles" type="file" multiple accept="image/jpeg,image/png,image/webp"><strong>Select 1–6 Product Photos</strong><span>JPEG, PNG or WebP • straight-on photos work best</span></label>
         <div class="wholesaleCleanRow">
-          <label class="inlineCheck"><input id="wholesaleWhiteBg" type="checkbox" checked> Clean white background</label>
-          <label class="compactLabel">Cleanup strength <input id="wholesaleStrength" type="range" min="25" max="95" value="55"><span id="wholesaleStrengthValue">55</span></label>
+          <label class="inlineCheck"><input id="wholesaleWhiteBg" type="checkbox" checked> Gentle studio background</label>
+          <label class="compactLabel">Cleanup strength <input id="wholesaleStrength" type="range" min="25" max="95" value="45"><span id="wholesaleStrengthValue">45</span></label>
         </div>
         <div class="actions wholesaleActions">
           <button class="secondary" id="wholesaleUseOriginals">Use Originals</button>
@@ -219,6 +219,6 @@
 </div>
 <div id="toast" class="toast"></div>
 <script src="/app.js?v=342"></script>
-<script src="/wholesale.js?v=342"></script>
+<script src="/wholesale.js?v=346"></script>
 </body>
 </html>

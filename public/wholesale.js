@@ -1,4 +1,4 @@
-// ===== v3.4.4 WHOLESALE PHOTO PREP + POSTER GENERATOR =====
+// ===== v3.4.6 GENTLE LOCAL CLEAN + WHOLESALE POSTER GENERATOR =====
 (() => {
   const q = s => document.querySelector(s);
   const qa = s => [...document.querySelectorAll(s)];
@@ -53,20 +53,35 @@
   }
 
   async function localClean(file,strength=55,doWhite=true){
+    // v3.4.6 Gentle Local Clean: clean the connected background only.
+    // Never applies global exposure/brightness to the product itself.
     const raw=await fileToDataURL(file), im=await loadImage(raw);
-    const maxSide=1100, sc=Math.min(1,maxSide/Math.max(im.naturalWidth,im.naturalHeight));
+    const maxSide=1400, sc=Math.min(1,maxSide/Math.max(im.naturalWidth,im.naturalHeight));
     const w=Math.max(1,Math.round(im.naturalWidth*sc)),h=Math.max(1,Math.round(im.naturalHeight*sc));
     const c=document.createElement("canvas");c.width=w;c.height=h;
     const x=c.getContext("2d",{willReadFrequently:true});
     x.drawImage(im,0,0,w,h);
     const id=x.getImageData(0,0,w,h), d=id.data;
-    const bg=estimateBackground(d,w,h), th=Number(strength);
+    const bg=estimateBackground(d,w,h);
+
+    // Strength now has a deliberately conservative range internally. The old
+    // cleaner could classify pale garments as background and then brighten the
+    // remaining product. This version does neither.
+    const ui=Math.max(25,Math.min(95,Number(strength)||55));
+    const colorThreshold=22 + (ui-25)*0.38; // ~22..49 instead of ~48..180
+    const neutralThreshold=10 + (ui-25)*0.18;
+    const bgLum=(bg[0]+bg[1]+bg[2])/3;
     const seen=new Uint8Array(w*h), queue=new Int32Array(w*h);let qh=0,qt=0;
     const isBg=(p)=>{
       const i=p*4,r=d[i],g=d[i+1],b=d[i+2];
       const dr=r-bg[0],dg=g-bg[1],db=b-bg[2],dist=Math.sqrt(dr*dr+dg*dg+db*db);
       const mx=Math.max(r,g,b),mn=Math.min(r,g,b),lum=(r+g+b)/3;
-      return dist < th*1.9 || (lum > 225-th*.2 && mx-mn < th*.72);
+      // Require close colour similarity to the sampled edge background.
+      // A neutral shortcut is allowed only when both sample and pixel are very
+      // bright; this protects cream, beige, pastel, lace and white products.
+      const closeToSample=dist<colorThreshold;
+      const brightNeutral=(bgLum>235 && lum>242 && (mx-mn)<neutralThreshold && dist<colorThreshold*1.15);
+      return closeToSample || brightNeutral;
     };
     const push=p=>{if(!seen[p]&&isBg(p)){seen[p]=1;queue[qt++]=p;}};
     for(let xx=0;xx<w;xx++){push(xx);push((h-1)*w+xx)}
@@ -74,23 +89,27 @@
     while(qh<qt){const p=queue[qh++],xx=p%w,yy=(p/w)|0;if(xx>0)push(p-1);if(xx<w-1)push(p+1);if(yy>0)push(p-w);if(yy<h-1)push(p+w)}
 
     let minx=w,miny=h,maxx=-1,maxy=-1;
+    // Soft studio white instead of hard #FFFFFF. Product pixels are copied
+    // untouched so highlights, texture and original colour are preserved.
+    const studio=[248,248,246];
     for(let p=0;p<w*h;p++){
       const i=p*4;
-      if(seen[p]&&doWhite){d[i]=255;d[i+1]=255;d[i+2]=255;}
+      if(seen[p]&&doWhite){d[i]=studio[0];d[i+1]=studio[1];d[i+2]=studio[2];}
       else if(!seen[p]){
         const xx=p%w,yy=(p/w)|0;
         if(xx<minx)minx=xx;if(xx>maxx)maxx=xx;if(yy<miny)miny=yy;if(yy>maxy)maxy=yy;
-        d[i]=Math.min(255,d[i]*1.035+2);d[i+1]=Math.min(255,d[i+1]*1.035+2);d[i+2]=Math.min(255,d[i+2]*1.035+2);
+        // IMPORTANT: no exposure/brightness modification here.
       }
     }
     x.putImageData(id,0,0);
     if(maxx<0){minx=0;miny=0;maxx=w-1;maxy=h-1;}
-    const pad=Math.round(Math.max(maxx-minx,maxy-miny)*.04);
+    const pad=Math.round(Math.max(maxx-minx,maxy-miny)*.055);
     minx=Math.max(0,minx-pad);miny=Math.max(0,miny-pad);maxx=Math.min(w-1,maxx+pad);maxy=Math.min(h-1,maxy+pad);
     const sw=maxx-minx+1,sh=maxy-miny+1;
     const out=document.createElement("canvas");out.width=1200;out.height=1200;
-    const o=out.getContext("2d");o.fillStyle="#fff";o.fillRect(0,0,1200,1200);
-    const scale=Math.min(1120/sw,1120/sh),dw=sw*scale,dh=sh*scale,dx=(1200-dw)/2,dy=(1200-dh)/2;
+    const o=out.getContext("2d");o.fillStyle=doWhite?"#f8f8f6":"#ffffff";o.fillRect(0,0,1200,1200);
+    const scale=Math.min(1100/sw,1100/sh),dw=sw*scale,dh=sh*scale,dx=(1200-dw)/2,dy=(1200-dh)/2;
+    o.imageSmoothingEnabled=true;o.imageSmoothingQuality="high";
     o.drawImage(c,minx,miny,sw,sh,dx,dy,dw,dh);
     return out.toDataURL("image/png");
   }
@@ -180,7 +199,7 @@
         <div class="wPhotoMeta"><b>${it.name}</b><span>${label}</span></div>
         <div class="wPhotoActions">
           <button class="mini aiCleanPhoto" data-index="${i}" ${it.aiStatus==="running"?'disabled':''}>${it.aiStatus==="running"?'Working…':(it.aiStatus==="error"?'Retry AI':'AI Clean')}</button>
-          ${it.cleaned?`<button class="mini useOriginalPhoto" data-index="${i}">Original</button>`:''}
+          ${it.cleaned?`<button class="mini downloadCleanPhoto" data-index="${i}">Download Clean</button><button class="mini useOriginalPhoto" data-index="${i}">Original</button>`:''}
         </div>${status}
       </div>`;
     }).join("");
@@ -196,6 +215,14 @@
         setAiStatus(err.message||String(err),"error");
         notify("OpenAI cleanup failed: "+(err.message||err));
       }
+    });
+    qa(".downloadCleanPhoto").forEach(btn=>btn.onclick=()=>{
+      const i=Number(btn.dataset.index),it=ws.items[i];
+      if(!it?.cleaned) return notify("Clean this photo first");
+      const a=document.createElement("a");a.href=it.cleaned;
+      a.download=`${safe(it.name.replace(/\.[^.]+$/,''))}_LOCAL_CLEAN.png`;
+      a.click();
+      notify("Clean photo downloaded");
     });
     qa(".useOriginalPhoto").forEach(btn=>btn.onclick=async()=>{
       const i=Number(btn.dataset.index),it=ws.items[i];

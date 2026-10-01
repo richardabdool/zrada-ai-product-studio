@@ -1,4 +1,4 @@
-// ===== v3.4.6 GENTLE LOCAL CLEAN + WHOLESALE POSTER GENERATOR =====
+// ===== v3.4.7 STUDIO BACKGROUND SEPARATION + WHOLESALE POSTER GENERATOR =====
 (() => {
   const q = s => document.querySelector(s);
   const qa = s => [...document.querySelectorAll(s)];
@@ -52,65 +52,72 @@
     return n?[rs/n,gs/n,bs/n]:[235,235,235];
   }
 
-  async function localClean(file,strength=55,doWhite=true){
-    // v3.4.6 Gentle Local Clean: clean the connected background only.
-    // Never applies global exposure/brightness to the product itself.
+  async function localClean(file,strength=45,doWhite=true){
+    // v3.4.7 Studio Background Separation.
+    // Goal: remove connected wall/floor/shadow background while preserving the
+    // product pixels exactly. No product exposure, contrast or colour edits.
     const raw=await fileToDataURL(file), im=await loadImage(raw);
-    const maxSide=1400, sc=Math.min(1,maxSide/Math.max(im.naturalWidth,im.naturalHeight));
+    const maxSide=1600, sc=Math.min(1,maxSide/Math.max(im.naturalWidth,im.naturalHeight));
     const w=Math.max(1,Math.round(im.naturalWidth*sc)),h=Math.max(1,Math.round(im.naturalHeight*sc));
     const c=document.createElement("canvas");c.width=w;c.height=h;
-    const x=c.getContext("2d",{willReadFrequently:true});
-    x.drawImage(im,0,0,w,h);
-    const id=x.getImageData(0,0,w,h), d=id.data;
-    const bg=estimateBackground(d,w,h);
-
-    // Strength now has a deliberately conservative range internally. The old
-    // cleaner could classify pale garments as background and then brighten the
-    // remaining product. This version does neither.
-    const ui=Math.max(25,Math.min(95,Number(strength)||55));
-    const colorThreshold=22 + (ui-25)*0.38; // ~22..49 instead of ~48..180
-    const neutralThreshold=10 + (ui-25)*0.18;
+    const x=c.getContext("2d",{willReadFrequently:true});x.drawImage(im,0,0,w,h);
+    const id=x.getImageData(0,0,w,h), d=id.data, bg=estimateBackground(d,w,h);
+    const ui=Math.max(25,Math.min(95,Number(strength)||45));
     const bgLum=(bg[0]+bg[1]+bg[2])/3;
+    const baseThreshold=28+(ui-25)*0.30;
     const seen=new Uint8Array(w*h), queue=new Int32Array(w*h);let qh=0,qt=0;
-    const isBg=(p)=>{
-      const i=p*4,r=d[i],g=d[i+1],b=d[i+2];
-      const dr=r-bg[0],dg=g-bg[1],db=b-bg[2],dist=Math.sqrt(dr*dr+dg*dg+db*db);
-      const mx=Math.max(r,g,b),mn=Math.min(r,g,b),lum=(r+g+b)/3;
-      // Require close colour similarity to the sampled edge background.
-      // A neutral shortcut is allowed only when both sample and pixel are very
-      // bright; this protects cream, beige, pastel, lace and white products.
-      const closeToSample=dist<colorThreshold;
-      const brightNeutral=(bgLum>235 && lum>242 && (mx-mn)<neutralThreshold && dist<colorThreshold*1.15);
-      return closeToSample || brightNeutral;
+    const rgb=p=>{const i=p*4;return [d[i],d[i+1],d[i+2]]};
+    const stats=p=>{const [r,g,b]=rgb(p),mx=Math.max(r,g,b),mn=Math.min(r,g,b);return {r,g,b,lum:(r+g+b)/3,chroma:mx-mn}};
+    const distBg=p=>{const [r,g,b]=rgb(p);return Math.hypot(r-bg[0],g-bg[1],b-bg[2])};
+    const canEnter=(p,from)=>{
+      const a=stats(p), db=distBg(p);
+      if(db<baseThreshold) return true;
+      // Shadows on white/grey studio walls are usually neutral but much darker
+      // than the sampled edge. Admit them only when they are connected to the
+      // already-confirmed background and the local colour transition is gentle.
+      if(a.chroma<26 && a.lum>82 && bgLum>175 && from>=0){
+        const b=stats(from), step=Math.hypot(a.r-b.r,a.g-b.g,a.b-b.b);
+        if(step < 18+(ui-25)*0.12) return true;
+      }
+      return false;
     };
-    const push=p=>{if(!seen[p]&&isBg(p)){seen[p]=1;queue[qt++]=p;}};
-    for(let xx=0;xx<w;xx++){push(xx);push((h-1)*w+xx)}
-    for(let yy=0;yy<h;yy++){push(yy*w);push(yy*w+w-1)}
-    while(qh<qt){const p=queue[qh++],xx=p%w,yy=(p/w)|0;if(xx>0)push(p-1);if(xx<w-1)push(p+1);if(yy>0)push(p-w);if(yy<h-1)push(p+w)}
+    const push=(p,from=-1)=>{if(p>=0&&p<w*h&&!seen[p]&&canEnter(p,from)){seen[p]=1;queue[qt++]=p;}};
+    // Seed from a thicker perimeter so uneven corners/walls are represented.
+    const band=Math.max(3,Math.round(Math.min(w,h)*0.012));
+    for(let b=0;b<band;b++){
+      for(let xx=0;xx<w;xx++){push(b*w+xx);push((h-1-b)*w+xx)}
+      for(let yy=0;yy<h;yy++){push(yy*w+b);push(yy*w+w-1-b)}
+    }
+    while(qh<qt){const p=queue[qh++],xx=p%w,yy=(p/w)|0;if(xx>0)push(p-1,p);if(xx<w-1)push(p+1,p);if(yy>0)push(p-w,p);if(yy<h-1)push(p+w,p)}
+
+    // Clean small jagged islands immediately beside confirmed background.
+    // This pass is intentionally shallow so it cannot march through a garment.
+    for(let pass=0;pass<3;pass++){
+      const add=[];
+      for(let yy=1;yy<h-1;yy++) for(let xx=1;xx<w-1;xx++){
+        const p=yy*w+xx;if(seen[p])continue;
+        let n=0; if(seen[p-1])n++;if(seen[p+1])n++;if(seen[p-w])n++;if(seen[p+w])n++;
+        if(n>=2){const a=stats(p);if(a.chroma<22&&a.lum>105)add.push(p)}
+      }
+      for(const p of add)seen[p]=1;
+    }
 
     let minx=w,miny=h,maxx=-1,maxy=-1;
-    // Soft studio white instead of hard #FFFFFF. Product pixels are copied
-    // untouched so highlights, texture and original colour are preserved.
-    const studio=[248,248,246];
+    const studio=[247,247,245];
+    // Build output pixel-by-pixel. Foreground is copied byte-for-byte.
     for(let p=0;p<w*h;p++){
       const i=p*4;
       if(seen[p]&&doWhite){d[i]=studio[0];d[i+1]=studio[1];d[i+2]=studio[2];}
-      else if(!seen[p]){
-        const xx=p%w,yy=(p/w)|0;
-        if(xx<minx)minx=xx;if(xx>maxx)maxx=xx;if(yy<miny)miny=yy;if(yy>maxy)maxy=yy;
-        // IMPORTANT: no exposure/brightness modification here.
-      }
+      else if(!seen[p]){const xx=p%w,yy=(p/w)|0;if(xx<minx)minx=xx;if(xx>maxx)maxx=xx;if(yy<miny)miny=yy;if(yy>maxy)maxy=yy;}
     }
     x.putImageData(id,0,0);
     if(maxx<0){minx=0;miny=0;maxx=w-1;maxy=h-1;}
-    const pad=Math.round(Math.max(maxx-minx,maxy-miny)*.055);
+    const pad=Math.round(Math.max(maxx-minx,maxy-miny)*.06);
     minx=Math.max(0,minx-pad);miny=Math.max(0,miny-pad);maxx=Math.min(w-1,maxx+pad);maxy=Math.min(h-1,maxy+pad);
-    const sw=maxx-minx+1,sh=maxy-miny+1;
-    const out=document.createElement("canvas");out.width=1200;out.height=1200;
-    const o=out.getContext("2d");o.fillStyle=doWhite?"#f8f8f6":"#ffffff";o.fillRect(0,0,1200,1200);
-    const scale=Math.min(1100/sw,1100/sh),dw=sw*scale,dh=sh*scale,dx=(1200-dw)/2,dy=(1200-dh)/2;
-    o.imageSmoothingEnabled=true;o.imageSmoothingQuality="high";
-    o.drawImage(c,minx,miny,sw,sh,dx,dy,dw,dh);
+    const sw=maxx-minx+1,sh=maxy-miny+1,out=document.createElement("canvas");out.width=1200;out.height=1200;
+    const o=out.getContext("2d");o.fillStyle=doWhite?"#f7f7f5":"#ffffff";o.fillRect(0,0,1200,1200);
+    const scale=Math.min(1090/sw,1090/sh),dw=sw*scale,dh=sh*scale,dx=(1200-dw)/2,dy=(1200-dh)/2;
+    o.imageSmoothingEnabled=true;o.imageSmoothingQuality="high";o.drawImage(c,minx,miny,sw,sh,dx,dy,dw,dh);
     return out.toDataURL("image/png");
   }
 

@@ -32,7 +32,7 @@
   <button class="nav wholesale-nav" data-view="wholesale">Wholesale Poster</button>
   <button class="nav" data-view="settings">Settings</button>
   <button class="nav logout-nav" type="button" onclick="zradaLogout()">Log Out</button>
-  <div class="version">v3.4.8 • SUBJECT MASK LOCAL CLEAN</div>
+  <div class="version">v3.4.9 • SAFE LOCAL PREP</div>
 </aside>
 
 <main>
@@ -141,20 +141,20 @@
   <div class="wholesaleWorkspace">
     <div class="wholesaleControls">
       <div class="panel">
-        <div class="panelHead"><div><h3>1. Upload & Clean Product Photos</h3><p>Use local cleanup for the fastest free workflow. Use OpenAI only on difficult photos that need smarter cleanup, mannequin removal or centering.</p></div><span class="freeBadge">LOCAL + OPENAI</span></div>
+        <div class="panelHead"><div><h3>1. Upload & Clean Product Photos</h3><p>Local Prep safely crops, centers, normalizes and gently brightens without removing any part of the product. Use OpenAI only when you need actual background or mannequin removal.</p></div><span class="freeBadge">LOCAL + OPENAI</span></div>
         <label class="drop wholesaleDrop"><input id="wholesaleFiles" type="file" multiple accept="image/jpeg,image/png,image/webp"><strong>Select 1–6 Product Photos</strong><span>JPEG, PNG or WebP • straight-on photos work best</span></label>
         <div class="wholesaleCleanRow">
-          <label class="inlineCheck"><input id="wholesaleWhiteBg" type="checkbox" checked> Gentle studio background</label>
-          <label class="compactLabel">Cleanup strength <input id="wholesaleStrength" type="range" min="25" max="75" value="45"><span id="wholesaleStrengthValue">45</span></label>
+          <label class="inlineCheck"><input id="wholesaleWhiteBg" type="checkbox" checked> Normalize 1200 × 1200 canvas</label>
+          <label class="compactLabel">Brightness <input id="wholesaleStrength" type="range" min="0" max="12" value="6"><span id="wholesaleStrengthValue">6</span></label>
         </div>
         <div class="actions wholesaleActions">
           <button class="secondary" id="wholesaleUseOriginals">Use Originals</button>
-          <button class="secondary" id="wholesaleCleanAll">Clean Photos (Local)</button>
+          <button class="secondary" id="wholesaleCleanAll">Prepare Photos (Local)</button>
           <button class="secondary" id="wholesaleCleanAi">OpenAI Clean All</button>
           <button class="secondary hidden" id="wholesaleStopAi">Stop OpenAI</button>
           <button class="secondary" id="wholesaleDownloadCleaned">Download Cleaned ZIP</button>
         </div>
-        <div class="note aiCleanupNote"><b>Tip:</b> Use Local for normal photos. For difficult photos, use the <b>AI Clean</b> button on that individual photo. OpenAI Clean All is only for batches where every photo needs AI.</div>
+        <div class="note aiCleanupNote"><b>Tip:</b> <b>Local Prep never removes product pixels.</b> It safely crops, centers, normalizes the canvas and gently brightens. Use <b>AI Clean</b> only when you need actual background or mannequin removal.</div>
         <div id="wholesaleAiStatus" class="note hidden"></div>
         <div id="wholesalePhotoGrid" class="wholesalePhotoGrid"><div class="empty">Upload product photos to begin.</div></div>
       </div>
@@ -194,7 +194,7 @@
     <div class="panel wholesalePreviewPanel">
       <div class="panelHead"><div><h3>Live Wholesale Poster</h3><p>Locked ZRADA black / white / red layout.</p></div><span class="lockedBadge">TEMPLATE LOCKED</span></div>
       <div class="posterStage"><canvas id="wholesaleCanvas" width="1080" height="1080"></canvas></div>
-      <div class="note">Workflow: <b>Upload → Clean Photos → Enter Details → Preview → Export JPEG.</b> Local cleanup is the default because it is faster and free. Use OpenAI Assist when a product needs better cleanup, centering or poster-ready arrangement.</div>
+      <div class="note">Workflow: <b>Upload → Clean Photos → Enter Details → Preview → Export JPEG.</b> Local Prep is fast and free and preserves the complete photograph. Use OpenAI Assist only when a product needs true background or mannequin removal.</div>
     </div>
   </div>
 </section>

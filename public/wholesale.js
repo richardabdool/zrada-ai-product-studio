@@ -1,4 +1,4 @@
-// ===== v3.4.7 STUDIO BACKGROUND SEPARATION + WHOLESALE POSTER GENERATOR =====
+// ===== v3.4.9 SAFE LOCAL PREP + WHOLESALE POSTER GENERATOR =====
 (() => {
   const q = s => document.querySelector(s);
   const qa = s => [...document.querySelectorAll(s)];
@@ -39,88 +39,41 @@
     return c.toDataURL("image/jpeg",quality);
   }
 
-  function estimateBackground(data,w,h){
-    let rs=0,gs=0,bs=0,n=0;
-    const step=Math.max(1,Math.floor(Math.min(w,h)/180));
-    function add(x,y){
-      const i=(y*w+x)*4,r=data[i],g=data[i+1],b=data[i+2];
-      const mx=Math.max(r,g,b),mn=Math.min(r,g,b),lum=(r+g+b)/3;
-      if(lum>120 && mx-mn<85){rs+=r;gs+=g;bs+=b;n++;}
-    }
-    for(let x=0;x<w;x+=step){add(x,0);add(x,h-1);if(h>8){add(x,4);add(x,h-5)}}
-    for(let y=0;y<h;y+=step){add(0,y);add(w-1,y);if(w>8){add(4,y);add(w-5,y)}}
-    return n?[rs/n,gs/n,bs/n]:[235,235,235];
-  }
-
-  async function localClean(file,strength=45,doWhite=true){
-    // v3.4.8 Subject Mask Local Clean.
-    // Builds a protected centre-subject silhouette first, then cleans only pixels
-    // confidently outside that silhouette. Original subject RGB values are untouched.
+  async function localClean(file,brightness=6,normalizeCanvas=true){
+    // v3.4.9 SAFE LOCAL PREP
+    // No segmentation/background removal. Preserve the entire photograph, trim only
+    // a tiny outer camera border, center it on a normalized square canvas and apply
+    // a mild brightness/contrast lift to the complete image.
     const raw=await fileToDataURL(file), im=await loadImage(raw);
-    const maxSide=1600, sc=Math.min(1,maxSide/Math.max(im.naturalWidth,im.naturalHeight));
-    const w=Math.max(1,Math.round(im.naturalWidth*sc)),h=Math.max(1,Math.round(im.naturalHeight*sc));
-    const c=document.createElement("canvas");c.width=w;c.height=h;
-    const x=c.getContext("2d",{willReadFrequently:true});x.drawImage(im,0,0,w,h);
-    const id=x.getImageData(0,0,w,h), d=id.data, bg=estimateBackground(d,w,h);
-    const ui=Math.max(25,Math.min(75,Number(strength)||45));
-    const studio=[247,247,245], cx=(w-1)/2;
-    const diff=(xx,yy)=>{const i=(yy*w+xx)*4,r=d[i],g=d[i+1],b=d[i+2];return Math.hypot(r-bg[0],g-bg[1],b-bg[2]);};
-    const chroma=(xx,yy)=>{const i=(yy*w+xx)*4,r=d[i],g=d[i+1],b=d[i+2];return Math.max(r,g,b)-Math.min(r,g,b)};
+    const iw=im.naturalWidth, ih=im.naturalHeight;
+    const trimX=Math.round(iw*0.015), trimY=Math.round(ih*0.015);
+    const sx=trimX, sy=trimY, sw=Math.max(1,iw-trimX*2), sh=Math.max(1,ih-trimY*2);
+    const lift=Math.max(0,Math.min(12,Number(brightness)||0));
 
-    // Find a centre-connected subject span on each row. A spatial centre prior is
-    // deliberate: wholesale source photos place the mannequin/product in the middle.
-    const L=new Int32Array(h),R=new Int32Array(h); L.fill(-1);R.fill(-1);
-    const seedT=34+(ui-25)*0.18;
-    for(let yy=0;yy<h;yy++){
-      let bestL=-1,bestR=-1,bestScore=-1,run=-1;
-      for(let xx=0;xx<=w;xx++){
-        const fg=xx<w && (diff(xx,yy)>seedT || chroma(xx,yy)>32);
-        if(fg&&run<0)run=xx;
-        if((!fg||xx===w)&&run>=0){
-          const rr=xx-1, mid=(run+rr)/2, width=rr-run+1;
-          const near=Math.max(0,1-Math.abs(mid-cx)/(w*.48));
-          const score=width*(0.35+near*1.65);
-          if(score>bestScore && rr>w*.18 && run<w*.82){bestScore=score;bestL=run;bestR=rr;}
-          run=-1;
-        }
-      }
-      if(bestL>=0){L[yy]=bestL;R[yy]=bestR;}
+    if(!normalizeCanvas){
+      const maxSide=1800, scale=Math.min(1,maxSide/Math.max(sw,sh));
+      const out=document.createElement("canvas");
+      out.width=Math.max(1,Math.round(sw*scale));out.height=Math.max(1,Math.round(sh*scale));
+      const o=out.getContext("2d");
+      o.fillStyle="#f7f7f5";o.fillRect(0,0,out.width,out.height);
+      o.imageSmoothingEnabled=true;o.imageSmoothingQuality="high";
+      o.filter=`brightness(${100+lift}%) contrast(102%)`;
+      o.drawImage(im,sx,sy,sw,sh,0,0,out.width,out.height);
+      o.filter="none";
+      return out.toDataURL("image/jpeg",.96);
     }
-    // Fill missing rows from neighbours, then smooth silhouette so white garments are
-    // protected even where their colour matches the wall.
-    let last=-1;for(let y=0;y<h;y++){if(L[y]>=0)last=y;else if(last>=0&&y-last<Math.max(18,h*.055)){L[y]=L[last];R[y]=R[last];}}
-    last=-1;for(let y=h-1;y>=0;y--){if(L[y]>=0)last=y;else if(last>=0&&last-y<Math.max(18,h*.055)){L[y]=L[last];R[y]=R[last];}}
-    const SL=new Int32Array(h),SR=new Int32Array(h);SL.fill(-1);SR.fill(-1);
-    const rad=Math.max(4,Math.round(h*.012));
-    for(let y=0;y<h;y++) if(L[y]>=0){let ls=0,rs=0,n=0;for(let k=Math.max(0,y-rad);k<=Math.min(h-1,y+rad);k++)if(L[k]>=0){ls+=L[k];rs+=R[k];n++;}SL[y]=Math.round(ls/n);SR[y]=Math.round(rs/n);}
-    let top=0,bottom=h-1;while(top<h&&SL[top]<0)top++;while(bottom>=0&&SL[bottom]<0)bottom--;
-    if(top>=h){top=Math.round(h*.08);bottom=Math.round(h*.94);for(let y=top;y<=bottom;y++){SL[y]=Math.round(w*.25);SR[y]=Math.round(w*.75);}}
 
-    // Expand the protected silhouette slightly. Everything outside is background;
-    // near the edge we require extra confidence, preventing halos without eating clothes.
-    let minx=w,miny=h,maxx=-1,maxy=-1;
-    const margin=Math.max(5,Math.round(w*.012));
-    for(let yy=0;yy<h;yy++) for(let xx=0;xx<w;xx++){
-      const i=(yy*w+xx)*4;
-      let subject=false;
-      if(yy>=top&&yy<=bottom&&SL[yy]>=0){subject=xx>=SL[yy]-margin&&xx<=SR[yy]+margin;}
-      // Preserve strong coloured/detail pixels near the subject envelope.
-      if(!subject&&yy>=top-margin&&yy<=bottom+margin&&SL[Math.min(bottom,Math.max(top,yy))]>=0){
-        const sy=Math.min(bottom,Math.max(top,yy)), near=xx>=SL[sy]-margin*2&&xx<=SR[sy]+margin*2;
-        if(near&&(diff(xx,Math.min(h-1,Math.max(0,yy)))>70||chroma(xx,Math.min(h-1,Math.max(0,yy)))>45))subject=true;
-      }
-      if(!subject&&doWhite){d[i]=studio[0];d[i+1]=studio[1];d[i+2]=studio[2];}
-      else if(subject){if(xx<minx)minx=xx;if(xx>maxx)maxx=xx;if(yy<miny)miny=yy;if(yy>maxy)maxy=yy;}
-    }
-    x.putImageData(id,0,0);
-    if(maxx<0){minx=0;miny=0;maxx=w-1;maxy=h-1;}
-    const pad=Math.round(Math.max(maxx-minx,maxy-miny)*.07);
-    minx=Math.max(0,minx-pad);miny=Math.max(0,miny-pad);maxx=Math.min(w-1,maxx+pad);maxy=Math.min(h-1,maxy+pad);
-    const sw=maxx-minx+1,sh=maxy-miny+1,out=document.createElement("canvas");out.width=1200;out.height=1200;
-    const o=out.getContext("2d");o.fillStyle=doWhite?"#f7f7f5":"#ffffff";o.fillRect(0,0,1200,1200);
-    const scale=Math.min(1090/sw,1090/sh),dw=sw*scale,dh=sh*scale,dx=(1200-dw)/2,dy=(1200-dh)/2;
-    o.imageSmoothingEnabled=true;o.imageSmoothingQuality="high";o.drawImage(c,minx,miny,sw,sh,dx,dy,dw,dh);
-    return out.toDataURL("image/png");
+    const out=document.createElement("canvas");out.width=1200;out.height=1200;
+    const o=out.getContext("2d");
+    o.fillStyle="#f7f7f5";o.fillRect(0,0,1200,1200);
+    // Fit the WHOLE photo inside a consistent canvas. No product pixels are masked.
+    const scale=Math.min(1120/sw,1120/sh), dw=Math.round(sw*scale), dh=Math.round(sh*scale);
+    const dx=Math.round((1200-dw)/2), dy=Math.round((1200-dh)/2);
+    o.imageSmoothingEnabled=true;o.imageSmoothingQuality="high";
+    o.filter=`brightness(${100+lift}%) contrast(102%)`;
+    o.drawImage(im,sx,sy,sw,sh,dx,dy,dw,dh);
+    o.filter="none";
+    return out.toDataURL("image/jpeg",.96);
   }
 
   function setAiStatus(text, kind="info"){

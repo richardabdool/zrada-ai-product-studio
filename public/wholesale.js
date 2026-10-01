@@ -53,66 +53,68 @@
   }
 
   async function localClean(file,strength=45,doWhite=true){
-    // v3.4.7 Studio Background Separation.
-    // Goal: remove connected wall/floor/shadow background while preserving the
-    // product pixels exactly. No product exposure, contrast or colour edits.
+    // v3.4.8 Subject Mask Local Clean.
+    // Builds a protected centre-subject silhouette first, then cleans only pixels
+    // confidently outside that silhouette. Original subject RGB values are untouched.
     const raw=await fileToDataURL(file), im=await loadImage(raw);
     const maxSide=1600, sc=Math.min(1,maxSide/Math.max(im.naturalWidth,im.naturalHeight));
     const w=Math.max(1,Math.round(im.naturalWidth*sc)),h=Math.max(1,Math.round(im.naturalHeight*sc));
     const c=document.createElement("canvas");c.width=w;c.height=h;
     const x=c.getContext("2d",{willReadFrequently:true});x.drawImage(im,0,0,w,h);
     const id=x.getImageData(0,0,w,h), d=id.data, bg=estimateBackground(d,w,h);
-    const ui=Math.max(25,Math.min(95,Number(strength)||45));
-    const bgLum=(bg[0]+bg[1]+bg[2])/3;
-    const baseThreshold=28+(ui-25)*0.30;
-    const seen=new Uint8Array(w*h), queue=new Int32Array(w*h);let qh=0,qt=0;
-    const rgb=p=>{const i=p*4;return [d[i],d[i+1],d[i+2]]};
-    const stats=p=>{const [r,g,b]=rgb(p),mx=Math.max(r,g,b),mn=Math.min(r,g,b);return {r,g,b,lum:(r+g+b)/3,chroma:mx-mn}};
-    const distBg=p=>{const [r,g,b]=rgb(p);return Math.hypot(r-bg[0],g-bg[1],b-bg[2])};
-    const canEnter=(p,from)=>{
-      const a=stats(p), db=distBg(p);
-      if(db<baseThreshold) return true;
-      // Shadows on white/grey studio walls are usually neutral but much darker
-      // than the sampled edge. Admit them only when they are connected to the
-      // already-confirmed background and the local colour transition is gentle.
-      if(a.chroma<26 && a.lum>82 && bgLum>175 && from>=0){
-        const b=stats(from), step=Math.hypot(a.r-b.r,a.g-b.g,a.b-b.b);
-        if(step < 18+(ui-25)*0.12) return true;
-      }
-      return false;
-    };
-    const push=(p,from=-1)=>{if(p>=0&&p<w*h&&!seen[p]&&canEnter(p,from)){seen[p]=1;queue[qt++]=p;}};
-    // Seed from a thicker perimeter so uneven corners/walls are represented.
-    const band=Math.max(3,Math.round(Math.min(w,h)*0.012));
-    for(let b=0;b<band;b++){
-      for(let xx=0;xx<w;xx++){push(b*w+xx);push((h-1-b)*w+xx)}
-      for(let yy=0;yy<h;yy++){push(yy*w+b);push(yy*w+w-1-b)}
-    }
-    while(qh<qt){const p=queue[qh++],xx=p%w,yy=(p/w)|0;if(xx>0)push(p-1,p);if(xx<w-1)push(p+1,p);if(yy>0)push(p-w,p);if(yy<h-1)push(p+w,p)}
+    const ui=Math.max(25,Math.min(75,Number(strength)||45));
+    const studio=[247,247,245], cx=(w-1)/2;
+    const diff=(xx,yy)=>{const i=(yy*w+xx)*4,r=d[i],g=d[i+1],b=d[i+2];return Math.hypot(r-bg[0],g-bg[1],b-bg[2]);};
+    const chroma=(xx,yy)=>{const i=(yy*w+xx)*4,r=d[i],g=d[i+1],b=d[i+2];return Math.max(r,g,b)-Math.min(r,g,b)};
 
-    // Clean small jagged islands immediately beside confirmed background.
-    // This pass is intentionally shallow so it cannot march through a garment.
-    for(let pass=0;pass<3;pass++){
-      const add=[];
-      for(let yy=1;yy<h-1;yy++) for(let xx=1;xx<w-1;xx++){
-        const p=yy*w+xx;if(seen[p])continue;
-        let n=0; if(seen[p-1])n++;if(seen[p+1])n++;if(seen[p-w])n++;if(seen[p+w])n++;
-        if(n>=2){const a=stats(p);if(a.chroma<22&&a.lum>105)add.push(p)}
+    // Find a centre-connected subject span on each row. A spatial centre prior is
+    // deliberate: wholesale source photos place the mannequin/product in the middle.
+    const L=new Int32Array(h),R=new Int32Array(h); L.fill(-1);R.fill(-1);
+    const seedT=34+(ui-25)*0.18;
+    for(let yy=0;yy<h;yy++){
+      let bestL=-1,bestR=-1,bestScore=-1,run=-1;
+      for(let xx=0;xx<=w;xx++){
+        const fg=xx<w && (diff(xx,yy)>seedT || chroma(xx,yy)>32);
+        if(fg&&run<0)run=xx;
+        if((!fg||xx===w)&&run>=0){
+          const rr=xx-1, mid=(run+rr)/2, width=rr-run+1;
+          const near=Math.max(0,1-Math.abs(mid-cx)/(w*.48));
+          const score=width*(0.35+near*1.65);
+          if(score>bestScore && rr>w*.18 && run<w*.82){bestScore=score;bestL=run;bestR=rr;}
+          run=-1;
+        }
       }
-      for(const p of add)seen[p]=1;
+      if(bestL>=0){L[yy]=bestL;R[yy]=bestR;}
     }
+    // Fill missing rows from neighbours, then smooth silhouette so white garments are
+    // protected even where their colour matches the wall.
+    let last=-1;for(let y=0;y<h;y++){if(L[y]>=0)last=y;else if(last>=0&&y-last<Math.max(18,h*.055)){L[y]=L[last];R[y]=R[last];}}
+    last=-1;for(let y=h-1;y>=0;y--){if(L[y]>=0)last=y;else if(last>=0&&last-y<Math.max(18,h*.055)){L[y]=L[last];R[y]=R[last];}}
+    const SL=new Int32Array(h),SR=new Int32Array(h);SL.fill(-1);SR.fill(-1);
+    const rad=Math.max(4,Math.round(h*.012));
+    for(let y=0;y<h;y++) if(L[y]>=0){let ls=0,rs=0,n=0;for(let k=Math.max(0,y-rad);k<=Math.min(h-1,y+rad);k++)if(L[k]>=0){ls+=L[k];rs+=R[k];n++;}SL[y]=Math.round(ls/n);SR[y]=Math.round(rs/n);}
+    let top=0,bottom=h-1;while(top<h&&SL[top]<0)top++;while(bottom>=0&&SL[bottom]<0)bottom--;
+    if(top>=h){top=Math.round(h*.08);bottom=Math.round(h*.94);for(let y=top;y<=bottom;y++){SL[y]=Math.round(w*.25);SR[y]=Math.round(w*.75);}}
 
+    // Expand the protected silhouette slightly. Everything outside is background;
+    // near the edge we require extra confidence, preventing halos without eating clothes.
     let minx=w,miny=h,maxx=-1,maxy=-1;
-    const studio=[247,247,245];
-    // Build output pixel-by-pixel. Foreground is copied byte-for-byte.
-    for(let p=0;p<w*h;p++){
-      const i=p*4;
-      if(seen[p]&&doWhite){d[i]=studio[0];d[i+1]=studio[1];d[i+2]=studio[2];}
-      else if(!seen[p]){const xx=p%w,yy=(p/w)|0;if(xx<minx)minx=xx;if(xx>maxx)maxx=xx;if(yy<miny)miny=yy;if(yy>maxy)maxy=yy;}
+    const margin=Math.max(5,Math.round(w*.012));
+    for(let yy=0;yy<h;yy++) for(let xx=0;xx<w;xx++){
+      const i=(yy*w+xx)*4;
+      let subject=false;
+      if(yy>=top&&yy<=bottom&&SL[yy]>=0){subject=xx>=SL[yy]-margin&&xx<=SR[yy]+margin;}
+      // Preserve strong coloured/detail pixels near the subject envelope.
+      if(!subject&&yy>=top-margin&&yy<=bottom+margin&&SL[Math.min(bottom,Math.max(top,yy))]>=0){
+        const sy=Math.min(bottom,Math.max(top,yy)), near=xx>=SL[sy]-margin*2&&xx<=SR[sy]+margin*2;
+        if(near&&(diff(xx,Math.min(h-1,Math.max(0,yy)))>70||chroma(xx,Math.min(h-1,Math.max(0,yy)))>45))subject=true;
+      }
+      if(!subject&&doWhite){d[i]=studio[0];d[i+1]=studio[1];d[i+2]=studio[2];}
+      else if(subject){if(xx<minx)minx=xx;if(xx>maxx)maxx=xx;if(yy<miny)miny=yy;if(yy>maxy)maxy=yy;}
     }
     x.putImageData(id,0,0);
     if(maxx<0){minx=0;miny=0;maxx=w-1;maxy=h-1;}
-    const pad=Math.round(Math.max(maxx-minx,maxy-miny)*.06);
+    const pad=Math.round(Math.max(maxx-minx,maxy-miny)*.07);
     minx=Math.max(0,minx-pad);miny=Math.max(0,miny-pad);maxx=Math.min(w-1,maxx+pad);maxy=Math.min(h-1,maxy+pad);
     const sw=maxx-minx+1,sh=maxy-miny+1,out=document.createElement("canvas");out.width=1200;out.height=1200;
     const o=out.getContext("2d");o.fillStyle=doWhite?"#f7f7f5":"#ffffff";o.fillRect(0,0,1200,1200);

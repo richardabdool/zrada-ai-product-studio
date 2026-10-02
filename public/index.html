@@ -32,7 +32,7 @@
   <button class="nav wholesale-nav" data-view="wholesale">Wholesale Poster</button>
   <button class="nav" data-view="settings">Settings</button>
   <button class="nav logout-nav" type="button" onclick="zradaLogout()">Log Out</button>
-  <div class="version">v3.4.9 • SAFE LOCAL PREP</div>
+  <div class="version">v3.5.0 • TURBO GENERATION</div>
 </aside>
 
 <main>
@@ -124,7 +124,7 @@
 
 <section id="queue" class="view">
 <div class="panel">
-  <div class="panelHead"><div><h3>Generation Queue</h3><p>The first successful color becomes the reference for the remaining colors of that style. Temporary server interruptions are retried automatically.</p></div><div class="queueActions"><button class="secondary" id="retryFailedBtn">Retry Failed Only</button><button class="secondary" id="cancelCurrentBtn">Cancel Current</button><button class="danger" id="cancelAllBtn">Cancel All</button><button class="primary" id="generateBtn">Generate Images</button></div></div>
+  <div class="panelHead"><div><h3>Generation Queue</h3><p>Turbo Generation can run up to 4 images at once. The first color of each style still becomes the locked reference before its remaining colors run in parallel. Temporary interruptions are retried automatically.</p></div><div class="queueActions"><label class="turboControl">Turbo <select id="concurrencySelect" title="Simultaneous image generations"><option value="1">1×</option><option value="2">2×</option><option value="3" selected>3×</option><option value="4">4×</option></select></label><button class="secondary" id="retryFailedBtn">Retry Failed Only</button><button class="secondary" id="cancelCurrentBtn">Cancel Current</button><button class="danger" id="cancelAllBtn">Cancel All</button><button class="primary" id="generateBtn">Generate Images</button></div></div>
   <div class="progressMeta"><span id="progressText">0 of 0 generated</span><b id="progressPct">0%</b></div><div class="track"><div id="progressBar"></div></div>
   <div id="queueList" class="empty">No images queued.</div>
 </div>

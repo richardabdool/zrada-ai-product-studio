@@ -50,7 +50,7 @@ async function zradaLogout(){
 // ===== END LOGIN CLIENT =====
 
 
-const state={files:[],groups:{},jobs:[],styleRefs:new Map(),running:false,authPaused:false};
+const state={files:[],groups:{},jobs:[],styleRefs:new Map(),running:false,authPaused:false,cancelAll:false,activeControllers:new Map(),activeOrder:[]};
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const categoryHelp={
 WOMENS_DRESS:"Full-body dress photography. Exact dress length is locked; hem and feet remain visible.",
@@ -194,7 +194,7 @@ $("#addQueue").onclick=()=>{
   $("#clearBatch").click();renderAll();showView("queue");toast("Batch added to generation queue");
 };
 
-async function generateJob(j){
+async function generateJob(j, signal){
   const source=await readFile(j.file);
   const reference=state.styleRefs.get(j.styleSeed)||null;
   const payload={
@@ -207,7 +207,8 @@ async function generateJob(j){
   const d=await fetchJsonSafe("/api/generate",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
-    body:JSON.stringify(payload)
+    body:JSON.stringify(payload),
+    signal
   });
   if(!d.ok)throw new Error(d.error||"Generation failed");
   j.result=d.image_base64;
@@ -218,77 +219,83 @@ async function generateJob(j){
   if(!reference)state.styleRefs.set(j.styleSeed,d.image_base64);
 }
 
+async function processJob(j){
+  j.error=null;j.retryMessage=null;
+  const maxAttempts=3;
+  for(let attempt=1;attempt<=maxAttempts;attempt++){
+    if(state.cancelAll){j.status="queued";return false}
+    const controller=new AbortController();
+    state.activeControllers.set(j.id,controller);state.activeOrder.push(j.id);
+    j.attempt=attempt;j.status=attempt===1?"running":"retrying";
+    j.retryMessage=attempt===1?null:`Retry ${attempt} of ${maxAttempts}`;renderAll();
+    try{
+      await generateJob(j,controller.signal);
+      return true;
+    }catch(e){
+      if(e.name==="AbortError"){
+        j.status="queued";j.error=null;j.retryMessage="Cancelled — ready to resume.";return false;
+      }
+      j.error=e.message||String(e);
+      if(e.authRequired){
+        j.status="queued";j.error=null;j.retryMessage="Queue paused — please sign in again, then click Generate Images to resume.";
+        state.authPaused=true;document.getElementById("loginGate").classList.remove("hidden");return false;
+      }
+      const transient=e.transient!==false;
+      if(attempt<maxAttempts && transient){
+        const waitMs=attempt===1?3500:7000;
+        j.status="retrying";j.retryMessage=`Temporary interruption — retrying in ${Math.round(waitMs/1000)} seconds (${attempt+1}/${maxAttempts})`;renderAll();
+        await sleep(waitMs);continue;
+      }
+      j.status="failed";j.retryMessage=null;return false;
+    }finally{
+      state.activeControllers.delete(j.id);state.activeOrder=state.activeOrder.filter(id=>id!==j.id);renderAll();
+    }
+  }
+  return false;
+}
+function turboConcurrency(){
+  const n=Number(document.getElementById("concurrencySelect")?.value||localStorage.getItem("zradaConcurrency")||3);
+  return Math.max(1,Math.min(4,n));
+}
+function isMasterEligible(j,pending){
+  if(state.styleRefs.has(j.styleSeed))return true;
+  const same=pending.filter(x=>x.styleSeed===j.styleSeed);
+  const active=state.jobs.some(x=>x.styleSeed===j.styleSeed&&(x.status==="running"||x.status==="retrying"));
+  if(active)return false;
+  const first=same.sort((a,b)=>(a.index??0)-(b.index??0))[0];
+  return first?.id===j.id;
+}
 async function runJobs(jobs){
   if(state.running)return;
   if(!jobs.length)return toast("No jobs to process");
-  state.running=true;
-  state.authPaused=false;
-  $("#generateBtn").disabled=true;
-  $("#retryFailedBtn").disabled=true;
-  $("#generateBtn").textContent="Generating...";
-  for(let idx=0;idx<jobs.length;idx++){
-    const j=jobs[idx];
-    j.error=null;
-    j.retryMessage=null;
-    let success=false;
-    const maxAttempts=3;
-    for(let attempt=1;attempt<=maxAttempts;attempt++){
-      j.attempt=attempt;
-      j.status=attempt===1?"running":"retrying";
-      j.retryMessage=attempt===1?null:`Retry ${attempt} of ${maxAttempts}`;
-      renderAll();
-      try{
-        await generateJob(j);
-        success=true;
-        break;
-      }catch(e){
-        j.error=e.message||String(e);
-        if(e.authRequired){
-          // Authentication loss is not an image failure. Pause this job and the queue.
-          j.status="queued";
-          j.error=null;
-          j.retryMessage="Queue paused — please sign in again, then click Generate Images to resume.";
-          state.authPaused=true;
-          document.getElementById("loginGate").classList.remove("hidden");
-          renderAll();
-          break;
-        }
-        const transient=e.transient!==false;
-        if(attempt<maxAttempts && transient){
-          const waitMs=attempt===1?5000:10000;
-          j.status="retrying";
-          j.retryMessage=`Temporary interruption — retrying in ${Math.round(waitMs/1000)} seconds (${attempt+1}/${maxAttempts})`;
-          renderAll();
-          await sleep(waitMs);
-          continue;
-        }
-        j.status="failed";
-        j.retryMessage=null;
-        break;
-      }
+  state.running=true;state.authPaused=false;state.cancelAll=false;
+  $("#generateBtn").disabled=true;$("#retryFailedBtn").disabled=true;$("#generateBtn").textContent="Turbo Generating...";
+  const pending=[...jobs];
+  const workers=Array.from({length:turboConcurrency()},async()=>{
+    while(pending.length&&!state.authPaused&&!state.cancelAll){
+      let pick=-1;
+      for(let i=0;i<pending.length;i++){if(isMasterEligible(pending[i],pending)){pick=i;break}}
+      if(pick<0){await sleep(250);continue}
+      const j=pending.splice(pick,1)[0];
+      await processJob(j);
     }
-    renderAll();
-    if(state.authPaused) break;
-    // Gentle spacing between expensive image calls protects large batches on free/low-tier hosting.
-    if(success && idx<jobs.length-1)await sleep(2500);
-  }
-  state.running=false;
-  $("#generateBtn").disabled=false;
-  $("#retryFailedBtn").disabled=false;
-  $("#generateBtn").textContent="Generate Images";
-  toast(state.authPaused ? "Queue paused for sign-in. Completed images are safe." : "Generation queue finished");
+  });
+  await Promise.all(workers);
+  if(state.cancelAll){pending.forEach(j=>{if(j.status!=="complete"){j.status="queued";j.error=null;j.retryMessage="Cancelled — ready to resume."}})}
+  state.running=false;$("#generateBtn").disabled=false;$("#retryFailedBtn").disabled=false;$("#generateBtn").textContent="Generate Images";renderAll();
+  toast(state.authPaused?"Queue paused for sign-in. Completed images are safe.":state.cancelAll?"Generation cancelled. Completed images are safe.":"Turbo generation queue finished");
 }
-$("#generateBtn").onclick=async()=>{
-  const jobs=state.jobs.filter(j=>j.status==="queued"||j.status==="failed");
-  if(!jobs.length)return toast("No queued or failed jobs to generate");
-  await runJobs(jobs);
-};
-$("#retryFailedBtn").onclick=async()=>{
-  const failed=state.jobs.filter(j=>j.status==="failed");
-  if(!failed.length)return toast("No failed images to retry");
-  failed.forEach(j=>{j.error=null;j.retryMessage=null;});
-  await runJobs(failed);
-};
+$("#generateBtn").onclick=async()=>{const jobs=state.jobs.filter(j=>j.status==="queued"||j.status==="failed");if(!jobs.length)return toast("No queued or failed jobs to generate");await runJobs(jobs)};
+$("#retryFailedBtn").onclick=async()=>{const failed=state.jobs.filter(j=>j.status==="failed");if(!failed.length)return toast("No failed images to retry");failed.forEach(j=>{j.error=null;j.retryMessage=null});await runJobs(failed)};
+function cancelCurrentGeneration(){
+  const id=state.activeOrder[state.activeOrder.length-1];
+  if(!id)return toast("No image is currently generating");
+  state.activeControllers.get(id)?.abort();toast("Current generation cancelled");
+}
+function cancelAllGeneration(){
+  if(!state.running)return toast("No generation is currently running");
+  state.cancelAll=true;for(const c of state.activeControllers.values())c.abort();toast("Cancelling all active generations...");
+}
 function renderQueue(){
   const q=$("#queueList");
   if(!state.jobs.length){q.className="empty";q.textContent="No images queued.";progress();return}
@@ -377,6 +384,9 @@ $("#testKey").onclick=testServerConnection;
     toast("Image setting saved");
   };
 });
+
+const concurrencySelect=document.getElementById("concurrencySelect");
+if(concurrencySelect){concurrencySelect.value=localStorage.getItem("zradaConcurrency")||"3";concurrencySelect.onchange=()=>{localStorage.setItem("zradaConcurrency",concurrencySelect.value);toast(`Turbo workers set to ${concurrencySelect.value}`)}}
 
 testServerConnection();renderBatch();renderAll();
 
